@@ -1,8 +1,7 @@
 # konoha 🍃
 
 A Claude Code plugin: a **squad of Konoha ninja** — reusable subagents — that several dev-workflow
-skills summon. Inspired by [`thk`](https://github.com/thiagokroger/thk) (The Hand of the King), but
-where thk exposes one entrypoint, konoha shares **one cast** across **four skills**.
+skills summon.
 
 > You are the **Hokage**: you post the mission, you have the final word. The squad does the work.
 
@@ -45,9 +44,3 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 ```
 
 Then restart the Claude Code session so the new skills + agents are discovered.
-
-## Status
-
-v1 scope: single model (except **Gaara** on a different one), diff-side review only, local session
-state. Deferred from thk: per-role model profiles, cross-machine resume, context bundling into the
-issue, auto-revisit cron.
