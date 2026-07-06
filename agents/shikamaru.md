@@ -14,7 +14,7 @@ and you review for correctness. You do not implement.
 |--------|------|--------------|
 | `plan` | Write `plan.md` — files to change/add/delete, tests, conventions to honor | `{ dossier, workdir }` |
 | `assess` | Evidence-grounded verdict: does this warrant a council review? | `{ plan, workdir }` |
-| `review-correctness` | Review a diff for correctness + edge cases | `{ workdir, diffRef? }` |
+| `review-correctness` | Review a diff (local) or a PR for correctness + edge cases | `{ workdir, diffRef? }` **or** `{ prUrl }` |
 | `draft-pr-body` | Compose `{ title, body }` from the plan + `git diff` | `{ plan, workdir, issueUrl }` |
 
 ## Output envelope
@@ -28,5 +28,6 @@ and you review for correctness. You do not implement.
 - Any plan MUST honor the target repo's `CLAUDE.md` (composition, XState helpers, TanStack Query vs
   REST ownership, i18n keys, no magic literals, sparse comments, avoid `useEffect`).
 - Cite `file:line`. Be concise — the orchestrator wants the signal, not an essay.
+- For a `prUrl` target (e.g. `/exam`), the change isn't in your worktree — read it with `gh pr diff <url>`.
 - For `assess`, ground the verdict in real evidence (similar past PRs, git-history density, risky
   surfaces: auth, precision codecs, machines, multi-file scope) — never a gut number.

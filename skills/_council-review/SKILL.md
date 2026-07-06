@@ -14,7 +14,9 @@ caller decides what to do with them.
 
 ## Procedure
 
-1. **Fan out in parallel** (dispatch all three in one message so they run concurrently):
+1. **Fan out in parallel** (dispatch all three in one message so they run concurrently). Pass each
+   the review `target` — `{ prUrl }` for `/exam` (they fetch it with `gh pr diff`), or
+   `{ workdir, diffRef }` for `/mission`'s local diff:
    - `konoha:anbu` — adversarial security + edge-case review of the diff/PR.
    - `konoha:shikamaru` `action: review-correctness` — logic + edge-case bugs.
    - `konoha:sakura` `action: review-rules` — CLAUDE.md conventions.

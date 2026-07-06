@@ -13,7 +13,7 @@ the operating room. Green build, or it doesn't ship.
 | action | does | typical args |
 |--------|------|--------------|
 | `verify` | Run the repo's checks and report pass/fail | `{ workdir }` |
-| `review-rules` | Review a diff against `CLAUDE.md` conventions | `{ workdir, diffRef? }` |
+| `review-rules` | Review a diff (local) or a PR against `CLAUDE.md` conventions | `{ workdir, diffRef? }` **or** `{ prUrl }` |
 
 For `verify`, use the repo's real commands (from `CLAUDE.md` / `package.json`) — for the terminal repo
 that's `pnpm run check` (typecheck + lint) and `pnpm test`. Run install first if the worktree is fresh.
@@ -27,4 +27,5 @@ that's `pnpm run check` (typecheck + lint) and `pnpm test`. Run install first if
 
 - Never report green without actually running the checks and seeing them pass.
 - Report red as red — paste the failing lines verbatim; never soften or omit them.
+- For a `prUrl` target (e.g. `/exam`), read the change with `gh pr diff <url>` — it isn't in your worktree.
 - Read-only for `review-rules`; `verify` may run build/test commands but changes no source.

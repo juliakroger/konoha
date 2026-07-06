@@ -52,7 +52,9 @@ ${PRIOR_TEXT}
 DIFF UNDER REVIEW:
 ${DIFF}"
 
-exec codex exec --full-auto \
-  --disable enable_request_compression \
+# --sandbox read-only: Gaara reviews; it must never modify files during a review.
+# The prompt (which embeds the full diff) goes via stdin ('-') so a large diff
+# can't blow the ARG_MAX limit — PR diffs run to thousands of lines.
+printf '%s' "$PROMPT" | codex exec --sandbox read-only \
   -c model_reasoning_effort="high" \
-  "$PROMPT"
+  -

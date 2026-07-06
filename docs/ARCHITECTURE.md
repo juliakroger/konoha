@@ -51,7 +51,7 @@ job — but v1 sets them directly in each agent's frontmatter instead of a profi
 | Gaara | **Codex CLI** (GPT, `model_reasoning_effort=high`) | genuine cross-model diversity for the outside read |
 
 **Gaara on Codex.** `_council-review` runs `scripts/gaara-codex.sh` for the closer, which shells to
-`codex exec --full-auto` (mirrors thk's Counselor Altman). Requires the `codex` CLI on PATH; if it's
+`codex exec --sandbox read-only` (mirrors thk's Counselor Altman, but read-only for review). Requires the `codex` CLI on PATH; if it's
 missing the script exits `CODEX_UNAVAILABLE` and the module falls back to the Claude `gaara` agent
 (Sonnet). A full `profiles.json` (swap any office's model without editing files) is a later phase.
 
