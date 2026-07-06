@@ -13,6 +13,11 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
 1. **No AI attribution** on the fix commits or the thread replies — it's the user's own PR.
 2. **Verification must pass** before pushing fixes (`pnpm run check` + tests).
 3. **Append-only** — new commits, never force-push; Draft PRs stay reviewable.
+4. **Commit messages are terse, not descriptive.** Name the review source, not the change:
+   - AI review bot → `Fix AI review`
+   - one named person → `Fix <Name> review` (e.g. `Fix John review`, `Fix Carlos review`)
+   - more than one source in a single commit → `Fix reviews`
+   A Slack review from a named person follows the person form (`Fix <Name> review`).
 
 ## Flow — two inputs, in order
 

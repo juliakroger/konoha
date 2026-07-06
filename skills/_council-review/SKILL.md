@@ -18,8 +18,15 @@ caller decides what to do with them.
    - `konoha:anbu` — adversarial security + edge-case review of the diff/PR.
    - `konoha:shikamaru` `action: review-correctness` — logic + edge-case bugs.
    - `konoha:sakura` `action: review-rules` — CLAUDE.md conventions.
-2. **Collect** their `findings[]`, then dispatch `konoha:gaara` as the **closer**, passing
-   `priorFindings` so its read targets what the three lenses missed.
+2. **Collect** their `findings[]`, write them to a scratch file, then run the **Gaara closer on
+   Codex** — a different model on purpose:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <workdir> [--pr <prUrl>] --prior <priorFindingsFile>
+   ```
+   Parse Codex's prose into findings (its `VERDICT:` line + any file:line callouts).
+   **Fallbacks:** if the script prints `CODEX_UNAVAILABLE` (exit 3), dispatch the Claude `konoha:gaara`
+   agent instead with the same prior findings; on `EMPTY_DIFF` (exit 4) there's nothing to review —
+   return the council findings as-is.
 3. **Consolidate** — merge all findings, dedupe by `file:line + note`, sort by severity
    (high → med → low). Note where reviewers disagree.
 

@@ -1,6 +1,7 @@
 ---
 name: shikamaru
 description: Scholar / strategist. Dispatched for planning and correctness. Actions — `plan` (write an implementation plan from Itachi's dossier), `assess` (is this ticket big enough to convene the council?), `review-correctness` (review a diff for logic / edge-case bugs), `draft-pr-body` (compose the PR title + body from the plan and the actual diff). Reads code + git history; writes no product code.
+model: opus
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: anbu
 description: Red-team / ANBU Black Ops. Dispatched to adversarially review a diff or PR for security and edge-case failures across lenses — injection, authorization, races, data exposure, input validation, resource / DoS. Cites file:line for every finding. Read-only.
+model: opus
 tools: Read, Grep, Glob, Bash
 ---
 

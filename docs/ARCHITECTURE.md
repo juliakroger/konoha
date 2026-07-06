@@ -27,13 +27,33 @@ The six specialists are real subagents in `agents/*.md`, dispatched via the `Age
 | Agent | Office | Model | Job |
 |---|---|---|---|
 | `itachi` | Capture | sonnet | Sharingan — reads issue/Notion + comments + linked PRs + code + backend repos |
-| `shikamaru` | Scholar | inherit | Root-cause, plan, correctness review, PR write-up, "convene?" verdict |
-| `sakura` | Enforcer | inherit | Verification gauntlet (`pnpm check` + tests) + convention rules |
-| `anbu` | Red-team | inherit | Adversarial security + edge-case review |
+| `shikamaru` | Scholar | opus | Root-cause, plan, correctness review, PR write-up, "convene?" verdict |
+| `sakura` | Enforcer | sonnet | Verification gauntlet (`pnpm check` + tests) + convention rules |
+| `anbu` | Red-team | opus | Adversarial security + edge-case review |
 | `naruto` | Shipwright | haiku | Commit, push, open PRs, post comments/replies |
-| `gaara` | Counselor | **sonnet** | Outside read — a different model on purpose; the review closer |
+| `gaara` | Counselor | **Codex CLI** | Outside read on a different model on purpose; the review closer (falls back to Claude Sonnet) |
 
 *(Cut vs thk: no Budget / Master of Coin — Kakashi watches scope himself.)*
+
+## Model & runner assignment
+
+Like thk (which centralizes this in `config/profiles.json`), each office runs on a model matched to its
+job — but v1 sets them directly in each agent's frontmatter instead of a profile file:
+
+| Agent | Runner / model | Why |
+|---|---|---|
+| Kakashi (orchestrator) | your session model (main loop) | runs `/mission` etc. in the main loop — can't be swapped per-agent |
+| Itachi | Claude Sonnet | lots of reading/summarizing; cheaper |
+| Shikamaru | Claude Opus | planning + correctness want the strongest reasoning |
+| Sakura | Claude Sonnet | mostly runs commands + checks conventions |
+| ANBU | Claude Opus | adversarial security wants deep reasoning |
+| Naruto | Claude Haiku | pure mechanical git / gh plumbing |
+| Gaara | **Codex CLI** (GPT, `model_reasoning_effort=high`) | genuine cross-model diversity for the outside read |
+
+**Gaara on Codex.** `_council-review` runs `scripts/gaara-codex.sh` for the closer, which shells to
+`codex exec --full-auto` (mirrors thk's Counselor Altman). Requires the `codex` CLI on PATH; if it's
+missing the script exits `CODEX_UNAVAILABLE` and the module falls back to the Claude `gaara` agent
+(Sonnet). A full `profiles.json` (swap any office's model without editing files) is a later phase.
 
 ## The four skills
 
@@ -86,6 +106,7 @@ konoha/
 ├── README.md
 ├── docs/ARCHITECTURE.md
 ├── agents/{itachi,shikamaru,sakura,anbu,naruto,gaara}.md
+├── scripts/gaara-codex.sh   ← Codex adapter for the counselor
 └── skills/
     ├── scroll/SKILL.md          ← create issue
     ├── mission/SKILL.md         ← ticket → Draft PR
@@ -118,7 +139,8 @@ The themed skills evolve logic you already have; your current skills stay untouc
 
 ## v1 scope (deferred from thk)
 
-- **profiles.json** (per-office model routing) — v1 pins only `gaara`/`naruto`/`itachi`; the rest inherit.
+- **profiles.json** (per-office model routing) — v1 sets models directly in agent frontmatter (Itachi/Sakura
+  Sonnet, Shikamaru/ANBU Opus, Naruto Haiku) and runs Gaara on the Codex CLI; a profile file comes later.
 - **Cross-machine resume + context bundling into the issue** — skipped; optional local session notes only.
 - **Plan-side council review** — v1 reviews the diff only (plan-side is a later phase).
 - **Auto-revisit cron** — you trigger `/debrief` yourself.

@@ -1,6 +1,7 @@
 ---
 name: sakura
 description: Enforcer / Medical Corps. Actions — `verify` (run the verification gauntlet: install + typecheck + lint + build + tests, report green/red with the failing output) and `review-rules` (review a diff against the repo's CLAUDE.md conventions and documented rules). Nothing ships until vitals are green.
+model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 
