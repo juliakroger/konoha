@@ -1,0 +1,17 @@
+{
+  "name": "konoha",
+  "version": "0.1.0",
+  "description": "A squad of Konoha ninja (reusable subagents) that power four dev-workflow skills: /scroll (draft an issue), /mission (ticket to Draft PR), /debrief (resolve the reviews on your PR), and /exam (review a colleague's PR). Inspired by thk, but where thk has one entrypoint, konoha shares one cast across four skills. Naruto-themed skin over a neutral engine.",
+  "author": {
+    "name": "Julia Kroger"
+  },
+  "keywords": [
+    "naruto",
+    "multi-agent",
+    "code-review",
+    "github",
+    "orchestration",
+    "issues",
+    "pull-requests"
+  ]
+}
