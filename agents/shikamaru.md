@@ -29,5 +29,7 @@ and you review for correctness. You do not implement.
   REST ownership, i18n keys, no magic literals, sparse comments, avoid `useEffect`).
 - Cite `file:line`. Be concise — the orchestrator wants the signal, not an essay.
 - For a `prUrl` target (e.g. `/exam`), the change isn't in your worktree — read it with `gh pr diff <url>`.
+- **Search with the `Grep` / `Glob` tools** (they reach all of `~/Tplus` with no prompt); reserve `Bash`
+  for `gh` / `git`. **Never `cd <dir> && …`** — the compound trips the path-resolution guard; use explicit paths.
 - For `assess`, ground the verdict in real evidence (similar past PRs, git-history density, risky
   surfaces: auth, precision codecs, machines, multi-file scope) — never a gut number.

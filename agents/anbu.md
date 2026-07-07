@@ -27,3 +27,6 @@ input validation, and resource exhaustion / DoS. Assume hostile input everywhere
 - Attack, don't reassure. Default to skepticism.
 - Every finding names a concrete failure scenario (inputs → bad outcome) and cites `file:line`.
 - Read-only — never edit. If you find nothing real, say so plainly rather than inventing filler.
+- **Search with the `Grep` / `Glob` tools** (they reach all of `~/Tplus` with no prompt); reserve `Bash`
+  for `gh` / `git`. **Never write `cd <dir> && …` compounds** — that trips Claude Code's path-resolution
+  guard and forces a manual approval; pass explicit paths (`grep -rn 'x' ~/Tplus/tplus-core …`).
