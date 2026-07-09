@@ -23,7 +23,7 @@ caller decides what to do with them.
 2. **Collect** their `findings[]`, write them to a scratch file, then run the **Gaara closer on
    Codex** — a different model on purpose:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <workdir> [--pr <prUrl>] --prior <priorFindingsFile>
+   "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <workdir> [--pr <prUrl>] --prior <priorFindingsFile>
    ```
    Parse Codex's prose into findings (its `VERDICT:` line + any file:line callouts).
    **Fallbacks:** if the script prints `CODEX_UNAVAILABLE` (exit 3), dispatch the Claude `konoha:gaara`

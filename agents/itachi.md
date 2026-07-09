@@ -35,8 +35,10 @@ A natural-language task with the ticket URL (or description) and the target repo
 ## Rules
 
 - Read-only. Never edit; never run mutating commands.
-- **Search with the `Grep` / `Glob` tools** (they reach all of `~/Tplus` with no approval prompt), not
-  `cd`+`grep`. Reserve `Bash` for `gh` / `git`. **Never write `cd <dir> && …` compounds** — that trips
-  Claude Code's path-resolution guard and forces a manual approval; pass explicit paths instead
-  (`grep -rn 'x' ~/Tplus/tplus-core ~/Tplus/tplus-services`).
+- **ALL code search goes through the `Grep` / `Glob` tools — never Bash `grep` / `find` / `xargs` /
+  `sed` / `awk` or `sh -c` pipelines.** The tools reach every allowed dir (all of `~/Tplus`) with zero
+  approval; Bash search pipelines — especially `… | xargs … sh -c '…'`, `cd <dir> && …`, backticks, or
+  `$(…)` — CANNOT be allowlisted and always force a manual approval. Match several patterns at once with a
+  `Grep` regex (`useEffect|useQuery|useMutation`) or multiple `Grep` calls. Reserve `Bash` strictly for
+  `gh` / `git` / build commands.
 - If the ticket can't be fetched, say exactly why — never invent its contents.

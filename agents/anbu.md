@@ -27,6 +27,9 @@ input validation, and resource exhaustion / DoS. Assume hostile input everywhere
 - Attack, don't reassure. Default to skepticism.
 - Every finding names a concrete failure scenario (inputs → bad outcome) and cites `file:line`.
 - Read-only — never edit. If you find nothing real, say so plainly rather than inventing filler.
-- **Search with the `Grep` / `Glob` tools** (they reach all of `~/Tplus` with no prompt); reserve `Bash`
-  for `gh` / `git`. **Never write `cd <dir> && …` compounds** — that trips Claude Code's path-resolution
-  guard and forces a manual approval; pass explicit paths (`grep -rn 'x' ~/Tplus/tplus-core …`).
+- **ALL code search goes through the `Grep` / `Glob` tools — never Bash `grep` / `find` / `xargs` /
+  `sed` / `awk` or `sh -c` pipelines.** The tools reach every allowed dir (all of `~/Tplus`) with zero
+  approval; Bash search pipelines — especially `… | xargs … sh -c '…'`, `cd <dir> && …`, backticks, or
+  `$(…)` — CANNOT be allowlisted and always force a manual approval. Match several patterns at once with a
+  `Grep` regex (`injection|authz|unwrap`) or multiple `Grep` calls. Reserve `Bash` strictly for
+  `gh` / `git` commands.

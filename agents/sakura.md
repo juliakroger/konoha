@@ -28,6 +28,10 @@ that's `pnpm run check` (typecheck + lint) and `pnpm test`. Run install first if
 - Never report green without actually running the checks and seeing them pass.
 - Report red as red — paste the failing lines verbatim; never soften or omit them.
 - For a `prUrl` target (e.g. `/exam`), read the change with `gh pr diff <url>` — it isn't in your worktree.
-- **Search with the `Grep` / `Glob` tools** (they reach all of `~/Tplus` with no prompt); reserve `Bash`
-  for `gh` / `git` / build commands. **Never `cd <dir> && …`** — the compound trips the path-resolution guard.
+- **ALL code search goes through the `Grep` / `Glob` tools — never Bash `grep` / `find` / `xargs` /
+  `sed` / `awk` or `sh -c` pipelines.** The tools reach every allowed dir (all of `~/Tplus`) with zero
+  approval; Bash search pipelines — especially `… | xargs … sh -c '…'`, `cd <dir> && …`, backticks, or
+  `$(…)` — CANNOT be allowlisted and always force a manual approval. Match several patterns at once with a
+  `Grep` regex (`useEffect|useQuery|useMutation`) or multiple `Grep` calls. Reserve `Bash` strictly for
+  `gh` / `git` / build commands.
 - Read-only for `review-rules`; `verify` may run build/test commands but changes no source.
