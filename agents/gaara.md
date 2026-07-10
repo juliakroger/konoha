@@ -1,6 +1,6 @@
 ---
 name: gaara
-description: Counselor — Kazekage of Suna, the outside read. Closes a review with a holistic second opinion on a diff or PR (correctness + security + design together). The PRIMARY Gaara runs on the Codex CLI (a different model on purpose) via scripts/gaara-codex.sh; this Claude definition is the FALLBACK used only when the codex CLI isn't installed. Advisory, not a gate.
+description: Counselor — Kazekage of Suna, the outside read. Closes a review with a holistic second opinion on a diff or PR (correctness + security + design together). The PRIMARY Gaara runs on the Codex CLI (GPT-5.5, a different model on purpose) via scripts/gaara-codex.sh; this Claude definition is the FALLBACK used only when the codex CLI isn't installed. Advisory, not a gate.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---

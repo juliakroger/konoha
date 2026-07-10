@@ -56,5 +56,6 @@ ${DIFF}"
 # The prompt (which embeds the full diff) goes via stdin ('-') so a large diff
 # can't blow the ARG_MAX limit — PR diffs run to thousands of lines.
 printf '%s' "$PROMPT" | codex exec --sandbox read-only \
+  -m "gpt-5.5" \
   -c model_reasoning_effort="high" \
   -

@@ -48,7 +48,7 @@ job — but v1 sets them directly in each agent's frontmatter instead of a profi
 | Sakura | Claude Sonnet | mostly runs commands + checks conventions |
 | ANBU | Claude Opus | adversarial security wants deep reasoning |
 | Naruto | Claude Haiku | pure mechanical git / gh plumbing |
-| Gaara | **Codex CLI** (GPT, `model_reasoning_effort=high`) | genuine cross-model diversity for the outside read |
+| Gaara | **Codex CLI** (GPT-5.5, `model_reasoning_effort=high`) | genuine cross-model diversity for the outside read |
 
 **Gaara on Codex.** `_council-review` runs `scripts/gaara-codex.sh` for the closer, which shells to
 `codex exec --sandbox read-only` (mirrors thk's Counselor Altman, but read-only for review). Requires the `codex` CLI on PATH; if it's
