@@ -1,6 +1,6 @@
 ---
 name: mission
-description: Take a GitHub issue or Notion task end-to-end to a Draft PR on the target repo. Itachi captures context, Shikamaru plans, you (Kakashi) implement per CLAUDE.md, Sakura verifies, the council reviews the diff and you fix what it flags, then Naruto opens a Draft PR based on staging. Autonomous, with one confirmation before the PR opens. Use when the user says "work on <issue/notion>", pastes a ticket to start, or invokes /mission.
+description: Take a GitHub issue end-to-end to a Draft PR on the target repo. Itachi captures context, Shikamaru plans, you (Kakashi) implement per CLAUDE.md, Sakura verifies, the council reviews the diff and you fix what it flags, then Naruto opens a Draft PR (based on staging) that links the issue with Closes #<n>. Autonomous, with one confirmation before the PR opens. Use when the user says "work on <issue>", pastes a GitHub issue to start, or invokes /mission.
 ---
 
 # /mission — run the mission to a Draft PR 🍃
@@ -25,14 +25,25 @@ out. You dispatch the squad, but you write the code yourself (single-agent execu
    semantic conflicts — e.g. new call sites of a function whose signature you changed); then re-run
    `typecheck` + `lint` + `format:check` + tests on that final merged tree. Never open a PR on a
    stale base.
+8. **YubiKey approval for every commit and push — via Julia's PIN popup.** She signs commits and
+   authenticates pushes with a `verify-required` FIDO2 key, so **every `git commit` and `git push`
+   needs a PIN + physical touch**. Naruto runs them with
+   `SSH_ASKPASS="$HOME/.ssh/yk-askpass.sh" SSH_ASKPASS_REQUIRE=force` so a macOS PIN dialog pops and
+   her key blinks — once per commit, once per push. The step-9 confirmation must warn her the ship
+   step will pop that dialog repeatedly and she has to be at the key to approve; only dispatch Naruto
+   once she confirms. If a prompt is cancelled or stalls, hand her the exact `git commit` /
+   `git push` / `gh pr create` to run herself — never `--no-gpg-sign`, never `--no-verify`, never
+   work around it.
+9. **NEVER merge a PR.** No `gh pr merge`, no squash/rebase/merge-queue — under any phrasing.
+   "Push it" / "lets push it" means `git push` only. Julia always merges manually herself; the
+   mission ends at a green-CI PR, never at a merge.
 
 ## Flow
 
 0. **Preflight.** `gh auth status`. Resolve the target repo; fetch latest `main` + `staging`; create
-   a worktree off `origin/staging` (mirror your `work-on` skill's setup). Branch name: for a GitHub
-   issue, exactly `issue-<number>` (e.g. `issue-625`); for a Notion task, a short kebab slug from
-   the task title, 1–3 words (e.g. `withdraw-modal`) — no numbers, no long descriptive slugs.
-1. **Capture.** Dispatch `konoha:itachi` with the ticket URL + workdir → dossier.
+   a worktree off `origin/staging` (mirror your `work-on` skill's setup). Branch name: exactly
+   `issue-<number>` (e.g. `issue-625`).
+1. **Capture.** Dispatch `konoha:itachi` with the issue URL + workdir → dossier.
 2. **Gate.** If already fixed → stop and say so. If critically underspecified → ask the user. Else go.
 3. **Plan.** Dispatch `konoha:shikamaru` `action: plan` → `plan.md`.
 4. **Execute.** Implement the plan **yourself**, per `CLAUDE.md`. No fan-out to parallel writers.
@@ -42,12 +53,17 @@ out. You dispatch the squad, but you write the code yourself (single-agent execu
 7. **Resync.** `git fetch origin staging`; if the base moved since preflight, merge it into the
    branch, fix semantic conflicts, and re-run the full gate set (`typecheck`, `lint`,
    `format:check`, tests) on the merged tree (hard rule 7).
-8. **PR body.** Dispatch `konoha:shikamaru` `action: draft-pr-body` → `{ title, body }` in the
-   small-and-simple shape of hard rule 6 (include `Closes #<n>` for GitHub issues; link the Notion
-   page otherwise).
-9. **Confirm, then ship.** Show the user the title + body + a one-line diffstat and get a single OK
-   (`AskUserQuestion`). Then dispatch `konoha:naruto` `action: commit` + `action: open-pr`
-   (`--draft --base staging`).
+8. **PR body.** Dispatch `konoha:shikamaru` `action: draft-pr-body` (pass the mission's issue URL) →
+   `{ title, body }` in the small-and-simple shape of hard rule 6. The body **must** link the issue
+   with `Closes #<n>` (`Closes <owner>/<repo>#<n>` if the issue lives in a different repo than the
+   PR) — that's the task link, non-negotiable.
+9. **Confirm (incl. YubiKey), then ship.** Show the user the title + body + a one-line diffstat and
+   get a single OK (`AskUserQuestion`) — in that same prompt, tell her the ship step pops her
+   **YubiKey PIN dialog + touch once per commit to sign and again to push**, so she should have the
+   key plugged in and be ready to approve each. Then dispatch `konoha:naruto` `action: commit` +
+   `action: open-pr` (`--draft --base staging`); Naruto drives both through her PIN popup (hard
+   rule 8). If any prompt stalls, give her the exact `git commit` / `git push` / `gh pr create` to
+   run herself.
 10. **Report** the Draft PR URL, then watch CI on the PR (`gh pr checks --watch` or poll) and fix
     any red check before calling the mission done.
 

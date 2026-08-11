@@ -10,7 +10,7 @@ skills summon.
 | Command | Does | Reviews with you? |
 |---|---|---|
 | **`/scroll`** | Draft a lean GitHub issue from a description you give (research-backed, confirm each step) | — |
-| **`/mission <issue\|notion>`** | Take a ticket end-to-end to a **Draft PR** | yes — council reviews the diff and fixes before shipping |
+| **`/mission <issue>`** | Take a GitHub issue end-to-end to a **Draft PR** (links it with `Closes #<n>`) | yes — council reviews the diff and fixes before shipping |
 | **`/debrief <pr-url>`** | Resolve the reviews on **your** PR — the AI review bot + teammates + (optionally) a pasted Slack review | — |
 | **`/exam <pr-url>`** | Review a **colleague's** PR and post **one** comment in your name | yes — council inspects, you post the summary |
 
@@ -19,7 +19,7 @@ skills summon.
 | Ninja | Role | Job |
 |---|---|---|
 | **Kakashi** | Orchestrator | Runs each mission from the main loop; routes, executes, decides *(a persona in the skills, not a dispatched agent — like thk's Hand)* |
-| **Itachi** | Capture | Sharingan — reads & remembers everything: issue/Notion + comments + linked PRs + code + backend repos |
+| **Itachi** | Capture | Sharingan — reads & remembers everything: issue + comments + linked PRs + code + backend repos |
 | **Shikamaru** | Scholar | Root-cause, git history, drafts the plan + PR write-up, correctness review |
 | **Sakura** | Enforcer | Verification gauntlet (`pnpm check` + tests = "vitals green") + convention rules |
 | **ANBU** | Red-team | Covert adversarial review — security + edge cases |
@@ -28,13 +28,15 @@ skills summon.
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Two rules baked in
+## Three rules baked in
 
 1. **The council-review module is shared** between `/mission` (fixes findings before shipping) and
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
 2. **AI attribution flips by ownership.** Your own commits/PRs (`/mission`, `/debrief`) carry **no** AI
    attribution. A review comment on a **colleague's** PR (`/exam`) **does** — an explicit footer —
    because there, transparency is the courteous thing.
+3. **Claude NEVER merges a PR.** Across every skill and agent: no `gh pr merge`, under any phrasing —
+   "push it" means `git push` only. The Hokage always merges manually, herself.
 
 ## Install (local)
 

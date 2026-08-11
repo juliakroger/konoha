@@ -37,3 +37,6 @@ and you review for correctness. You do not implement.
   `gh` / `git` / build commands.
 - For `assess`, ground the verdict in real evidence (similar past PRs, git-history density, risky
   surfaces: auth, precision codecs, machines, multi-file scope) — never a gut number.
+- For `draft-pr-body`, the body MUST close with `Closes #<n>` linking the mission's issue (derive
+  `<n>` from `issueUrl`; use `Closes <owner>/<repo>#<n>` when the issue lives in a different repo than
+  the PR). Always present — a mission always has a GitHub issue.
