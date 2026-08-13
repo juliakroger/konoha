@@ -7,8 +7,11 @@
 # Usage:
 #   gaara-codex.sh --workdir <abs> [--pr <url>] [--prior <file>]
 #     --workdir   repo/worktree to run in (defaults to $PWD)
-#   env GAARA_MODEL=<id>  force a model; otherwise the codex config's `model` wins
-#                         (see the resolution block below — keep Gaara on the newest)
+#   env GAARA_MODEL=<id>        force a model; otherwise the codex config's `model` wins
+#                               (see the resolution block below — keep Gaara on the newest)
+#   env GAARA_REASONING=<tier>  model_reasoning_effort (default medium — high roughly
+#                               doubled wall time on a mid-size PR for marginal gain)
+#   env GAARA_FULL_DIFF=1       embed the whole diff; skip the tests/docs/lockfile trim
 #     --pr        review a PR's diff (gh pr diff <url>); omit to review the
 #                 uncommitted diff in --workdir (the /mission case)
 #     --prior     a file of findings the Claude council already produced, so
@@ -44,7 +47,25 @@ else
     DIFF="${DIFF}"$'\n'"$(git diff --no-index -- /dev/null "$f" || true)"
   done <<< "$UNTRACKED"
 fi
-[ -n "${DIFF//[[:space:]]/}" ] || { echo "EMPTY_DIFF"; exit 4; }
+# Single-pass emptiness check; ${DIFF//[[:space:]]/} is quadratic in bash 3.2 and
+# spun for CPU-hours on a ~60KB diff.
+[[ "$DIFF" == *[![:space:]]* ]] || { echo "EMPTY_DIFF"; exit 4; }
+
+# Tests/docs/lockfiles dominate token cost but rarely move the verdict; strip them
+# from the embedded diff. They stay listed in the prompt, and the read-only sandbox
+# lets Gaara open them in the checkout when it wants them. GAARA_FULL_DIFF=1 skips.
+TRIM_RE='^(tests?/|docs?/)|(^|/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock)$|\.(snap|lock|svg)$'
+OMITTED=""
+if [ "${GAARA_FULL_DIFF:-0}" != "1" ]; then
+  OMITTED="$(printf '%s\n' "$DIFF" | sed -n 's|^diff --git a/\(.*\) b/.*|\1|p' | grep -E "$TRIM_RE" || true)"
+  if [ -n "$OMITTED" ]; then
+    TRIMMED="$(printf '%s\n' "$DIFF" | awk -v re="$TRIM_RE" '
+      /^diff --git a\// { path = $0; sub(/^diff --git a\//, "", path); sub(/ b\/.*/, "", path); keep = path !~ re }
+      keep')"
+    # a tests/docs-only change must still get a review — fall back to the full diff
+    if [[ "$TRIMMED" == *[![:space:]]* ]]; then DIFF="$TRIMMED"; else OMITTED=""; fi
+  fi
+fi
 
 PRIOR_TEXT="<none>"
 [ -n "$PRIOR" ] && [ -f "$PRIOR" ] && PRIOR_TEXT="$(cat "$PRIOR")"
@@ -60,17 +81,30 @@ if [ -z "$MODEL" ] && [ -f "$CODEX_CFG" ]; then
     | sed -E 's/.*=[[:space:]]*"?([^"#]*[^"# ])"?.*/\1/' || true)"
 fi
 [ -n "$MODEL" ] || MODEL="gpt-5.6-sol"
-echo "gaara: codex model=${MODEL} reasoning=high" >&2
+REASONING="${GAARA_REASONING:-medium}"
+echo "gaara: codex model=${MODEL} reasoning=${REASONING}" >&2
 
 PROMPT="You are the outside reviewer — a different model than the team that wrote and
-first reviewed this change. Review the diff below HOLISTICALLY: correctness,
-security, and design together. Look hardest for what a single-lens reviewer would
-MISS across lenses. Be concise and cite file:line for every finding. End with one
-line: 'VERDICT: APPROVE' or 'VERDICT: REQUEST-CHANGES'.
+first reviewed this change. One pass, holistic: correctness, security, and design
+together. Hunt specifically for what single-lens reviewers MISS — lifecycle and
+state interactions, API misuse, wrong assumptions the tests share with the code,
+and designs that will bite the next change.
 
-The Claude council already flagged the following — do NOT just repeat these; find
-what they missed:
+Rules:
+- Do NOT repeat or re-litigate the council findings below; spend your budget on
+  gaps. If you believe a council finding is wrong, refute it in one line instead.
+- At most 6 findings, severity-ordered (HIGH/MED/LOW), one tight paragraph each,
+  every finding citing file:line. No style nits.
+- You are inside the repo checkout, read-only: open surrounding files when the
+  diff alone is ambiguous — including any omitted files listed below.
+- End with exactly one line: 'VERDICT: APPROVE' or 'VERDICT: REQUEST-CHANGES'.
+
+Council findings (do not repeat):
 ${PRIOR_TEXT}
+
+Changed files omitted from the diff for brevity (tests/docs/lockfiles — read them
+in the checkout if relevant):
+${OMITTED:-<none>}
 
 DIFF UNDER REVIEW:
 ${DIFF}"
@@ -80,5 +114,5 @@ ${DIFF}"
 # can't blow the ARG_MAX limit — PR diffs run to thousands of lines.
 printf '%s' "$PROMPT" | codex exec --sandbox read-only \
   -m "$MODEL" \
-  -c model_reasoning_effort="high" \
+  -c model_reasoning_effort="$REASONING" \
   -

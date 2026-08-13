@@ -17,8 +17,12 @@ out. You dispatch the squad, but you write the code yourself (single-agent execu
 4. **One confirmation before opening the PR** — otherwise run autonomously.
 5. **Honor the target repo's `CLAUDE.md`** throughout.
 6. **PR text is small and simple** — short title (3–6 words), body of ≤5 plain `-` bullets +
-   `Closes #<n>`. No section headers, no test-coverage sections, no file-by-file walkthroughs.
-   Match Julia's PR history (e.g. terminal #619, #591).
+   `Closes #<n>`. Each bullet is a **one-line fragment** — imperative or noun phrase, optional
+   detail after an em-dash (`Batch trades WS frames — buffered 200ms and single cache write`) —
+   **never a full prose sentence or multi-sentence paragraph**; no rationale clauses, no nested
+   parentheticals. A short free-text caveat line between the bullets and `Closes` is fine. No
+   section headers, no test-coverage sections, no file-by-file walkthroughs. Match Julia's PR
+   history (terminal #619, #591 are the canonical shape).
 7. **Sync + gate against the latest base right before shipping.** CI builds the PR as a merge with
    the *current* base branch, not the one you branched from. Immediately before opening (or
    updating) the PR: `git fetch origin staging`; if it moved, merge it into the branch (resolve

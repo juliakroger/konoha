@@ -1,6 +1,6 @@
 ---
 name: gaara
-description: Counselor — Kazekage of Suna, the outside read. Closes a review with a holistic second opinion on a diff or PR (correctness + security + design together). The REAL Gaara runs on the Codex CLI, always the newest GPT (currently gpt-5.6-sol, high reasoning), via scripts/gaara-codex.sh — that is the only Gaara a review may use. This Claude definition is NOT a fallback: /exam and /mission must never dispatch it when Codex fails (they stop and ask the user instead). Use it only when the user explicitly asks for a Claude-side second opinion.
+description: Counselor — Kazekage of Suna, the outside read. Closes a review with a holistic second opinion on a diff or PR (correctness + security + design together). The REAL Gaara runs on the Codex CLI, always the newest GPT (currently gpt-5.6-sol; reasoning defaults to medium, override with GAARA_REASONING), via scripts/gaara-codex.sh — that is the only Gaara a review may use. This Claude definition is NOT a fallback: /exam and /mission must never dispatch it when Codex fails (they stop and ask the user instead). Use it only when the user explicitly asks for a Claude-side second opinion.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
