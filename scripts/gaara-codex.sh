@@ -5,7 +5,7 @@
 # reviewers missed. Prints Codex's prose verdict to stdout.
 #
 # Usage:
-#   gaara-codex.sh --workdir <abs> [--pr <url>] [--prior <file>]
+#   gaara-codex.sh --workdir <abs> [--pr <url>] [--prior <file>] [--plan <file>]
 #     --workdir   repo/worktree to run in (defaults to $PWD)
 #   env GAARA_MODEL=<id>        force a model; otherwise the codex config's `model` wins
 #                               (see the resolution block below — keep Gaara on the newest)
@@ -16,18 +16,22 @@
 #                 uncommitted diff in --workdir (the /mission case)
 #     --prior     a file of findings the Claude council already produced, so
 #                 Gaara targets the gaps instead of repeating them
+#     --plan      the architect's plan.md (/mission only) — the closer also
+#                 verifies the diff implements it and flags unapproved
+#                 design deviations
 #
 # Exit codes: 3 = codex not installed, 4 = empty diff (nothing to review).
 # Both HALT the review — the caller asks the user to retry or stop, and must
 # never substitute the Claude gaara agent for a failed run here.
 set -euo pipefail
 
-WORKDIR="$PWD"; PR=""; PRIOR=""
+WORKDIR="$PWD"; PR=""; PRIOR=""; PLAN=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --workdir) WORKDIR="$2"; shift 2 ;;
     --pr)      PR="$2";      shift 2 ;;
     --prior)   PRIOR="$2";   shift 2 ;;
+    --plan)    PLAN="$2";    shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -69,6 +73,8 @@ fi
 
 PRIOR_TEXT="<none>"
 [ -n "$PRIOR" ] && [ -f "$PRIOR" ] && PRIOR_TEXT="$(cat "$PRIOR")"
+PLAN_TEXT="<none>"
+[ -n "$PLAN" ] && [ -f "$PLAN" ] && PLAN_TEXT="$(cat "$PLAN")"
 
 # Gaara must always run the NEWEST Codex model. A hard-coded pin rots silently —
 # this sat on gpt-5.5 long after the CLI default moved on — so read the model from
@@ -97,10 +103,17 @@ Rules:
   every finding citing file:line. No style nits.
 - You are inside the repo checkout, read-only: open surrounding files when the
   diff alone is ambiguous — including any omitted files listed below.
+- Write in ASD-STE100 Simplified Technical English: short sentences (max 20-25
+  words), active voice, one topic per sentence, simple words, no idioms. Keep
+  code identifiers and quoted output verbatim.
 - End with exactly one line: 'VERDICT: APPROVE' or 'VERDICT: REQUEST-CHANGES'.
 
 Council findings (do not repeat):
 ${PRIOR_TEXT}
+
+Approved plan (when present, also verify the diff implements it; flag any
+design deviation that carries no GRANTED ruling in the deviation log):
+${PLAN_TEXT}
 
 Changed files omitted from the diff for brevity (tests/docs/lockfiles — read them
 in the checkout if relevant):

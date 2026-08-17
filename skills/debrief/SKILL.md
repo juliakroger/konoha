@@ -31,6 +31,34 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
    hand her the exact `git commit` / `git push` — never `--no-gpg-sign`, never work around it.
 7. **NEVER merge a PR.** No `gh pr merge` — under any phrasing; "push it" means `git push` only.
    Julia always merges manually herself. The debrief ends at pushed fixes + resolved threads.
+8. **Declining feedback is not your call (0.3.0).** Accepting or deferring a finding needs no
+   permission. To DECLINE one — the AI review bot's, a teammate's, or a Slack reviewer's — you need
+   a GRANTED ruling from the Codex architect: batch all candidate declines into one file (id,
+   finding, your objection, evidence) and run
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/architect-codex.sh" arbitrate --contested <file> --workdir <repo>`.
+   `DENIED` → treat as accepted and fix it. If the script fails, ask the user to retry or stop; on
+   stop, the contested items are NEVER silently declined — list them in the final report as
+   "needs your call". The frontend-review bot runs on Codex, so this also ends the pattern of
+   Claude unilaterally dismissing GPT findings.
+
+## Language (ASD-STE100)
+
+Write all prose — triage reasons, reports, suggested replies — in ASD-STE100 Simplified
+Technical English:
+
+- Keep sentences short: max 20 words in an instruction, max 25 in a description. Give each
+  sentence one topic. Keep paragraphs to max 6 sentences.
+- Use the active voice and name the actor. Use the imperative for instructions. Stay in the
+  simple present or simple past tense.
+- Use one word for one meaning, and the same word every time — never a synonym for variety.
+- Use the simple word: use / start / do / show / before / about — not utilize / initiate /
+  perform / demonstrate / prior to / approximately.
+- Do not use idioms, metaphors, hedging, or filler. Keep noun clusters to max 3 words — break
+  longer chains with of / for / in.
+- Keep code identifiers, paths, commands, and quoted tool output verbatim — they are technical
+  names, exempt from these rules.
+- A required output shape wins over STE — hard rule 4's commit messages stay in their exact
+  form; STE governs the prose inside the shape.
 
 ## Flow — two inputs, in order
 
@@ -40,7 +68,9 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
 2. **Ask for Slack (optional).** Then explicitly ask the user: *"Any Slack review to paste in? (optional)"*
    If they paste text, fold those findings into the same triage; if they skip, continue.
 3. **Understand.** Dispatch `konoha:shikamaru` to map each piece of feedback against the PR's task.
-4. **Triage.** Kakashi decides per finding: **accept / defer / decline**, with a one-line reason.
+4. **Triage.** Kakashi sorts each finding: **accept / defer / decline-candidate**, with a one-line
+   reason. Accepts and defers are yours. Decline-candidates go to the architect in ONE batched
+   `arbitrate` call (hard rule 8); a `DENIED` ruling moves the item back to accept.
 5. **Fix.** Implement the accepted items yourself; dispatch `konoha:sakura` `action: verify`.
 6. **Confirm YubiKey, then ship.** Committing and pushing each pop her **YubiKey PIN dialog + touch**
    (once per commit to sign, once to push) — tell her so and get a quick OK that she's at the key

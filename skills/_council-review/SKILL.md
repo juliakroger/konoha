@@ -10,7 +10,10 @@ caller decides what to do with them.
 
 ## Input
 
-`{ target: { workdir, diffRef? } | { prUrl }, mode: "fix" | "comment" }`
+`{ target: { workdir, diffRef? } | { prUrl }, mode: "fix" | "comment", planFile? }`
+
+`planFile` is the architect's `plan.md` — `/mission` passes it; `/exam` has none. It goes to the
+Gaara closer so the outside read also verifies the diff implements the plan.
 
 ## Procedure
 
@@ -23,7 +26,7 @@ caller decides what to do with them.
 2. **Collect** their `findings[]`, write them to a scratch file, then run the **Gaara closer on
    Codex** — a different model on purpose, and a REQUIRED step:
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <workdir> [--pr <prUrl>] --prior <priorFindingsFile>
+   "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <workdir> [--pr <prUrl>] --prior <priorFindingsFile> [--plan <planFile>]
    ```
    Parse Codex's prose into findings (its `VERDICT:` line + any file:line callouts).
 3. **Consolidate** — merge all findings, dedupe by `file:line + note`, sort by severity
@@ -53,6 +56,23 @@ Hard prohibitions, no exceptions:
 ```
 { findings: [{ severity, file, line, note, from }], summary: string }
 ```
+
+## Language (ASD-STE100)
+
+Write the `summary` and every consolidated `note` in ASD-STE100 Simplified Technical English:
+
+- Keep sentences short: max 20 words in an instruction, max 25 in a description. Give each
+  sentence one topic. Keep paragraphs to max 6 sentences.
+- Use the active voice and name the actor. Use the imperative for instructions. Stay in the
+  simple present or simple past tense.
+- Use one word for one meaning, and the same word every time — never a synonym for variety.
+- Use the simple word: use / start / do / show / before / about — not utilize / initiate /
+  perform / demonstrate / prior to / approximately.
+- Do not use idioms, metaphors, hedging, or filler. Keep noun clusters to max 3 words — break
+  longer chains with of / for / in.
+- Keep code identifiers, paths, commands, and quoted tool output verbatim — they are technical
+  names, exempt from these rules.
+- The output envelope wins over STE; STE governs the prose inside it.
 
 ## Rules
 

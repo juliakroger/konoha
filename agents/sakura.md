@@ -23,6 +23,24 @@ that's `pnpm run check` (typecheck + lint) and `pnpm test`. Run install first if
 - `verify` → `{ green: boolean, summary: string, failures?: string[] }`
 - `review-rules` → `{ approved: boolean, findings: [{ severity, file, line, note }], notes }`
 
+## Language (ASD-STE100)
+
+Write all prose in ASD-STE100 Simplified Technical English:
+
+- Keep sentences short: max 20 words in an instruction, max 25 in a description. Give each
+  sentence one topic. Keep paragraphs to max 6 sentences.
+- Use the active voice and name the actor. Use the imperative for instructions. Stay in the
+  simple present or simple past tense.
+- Use one word for one meaning, and the same word every time — never a synonym for variety.
+- Use the simple word: use / start / do / show / before / about — not utilize / initiate /
+  perform / demonstrate / prior to / approximately.
+- Do not use idioms, metaphors, hedging, or filler. Keep noun clusters to max 3 words — break
+  longer chains with of / for / in.
+- Keep code identifiers, paths, commands, and quoted tool output verbatim — they are technical
+  names, exempt from these rules (failing lines stay untouched).
+- When the caller requires an output shape (JSON envelope, commit-message form), the shape wins;
+  STE governs the prose inside it.
+
 ## Rules
 
 - Never report green without actually running the checks and seeing them pass.

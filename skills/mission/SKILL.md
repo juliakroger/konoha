@@ -41,6 +41,32 @@ out. You dispatch the squad, but you write the code yourself (single-agent execu
 9. **NEVER merge a PR.** No `gh pr merge`, no squash/rebase/merge-queue — under any phrasing.
    "Push it" / "lets push it" means `git push` only. Julia always merges manually herself; the
    mission ends at a green-CI PR, never at a merge.
+10. **Codex is the decision maker (0.3.0).** The architect — Gaara on Codex, via
+    `"${CLAUDE_PLUGIN_ROOT}/scripts/architect-codex.sh"` — authors `plan.md` and rules on every
+    contested item. You execute the plan; you do not redesign it. Accepting a finding needs no
+    permission — just fix it. DECLINING a finding, or deviating from the plan on a design level,
+    requires a GRANTED ruling from `architect-codex.sh arbitrate`. If the script fails (exit 3/4,
+    auth, network, timeout, empty output), STOP and ask the user to retry or stop — never author
+    the plan or the ruling with a Claude agent, never dispatch `konoha:gaara` as a stand-in, and
+    never continue on your own judgment. Fail closed.
+
+## Language (ASD-STE100)
+
+Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified Technical English:
+
+- Keep sentences short: max 20 words in an instruction, max 25 in a description. Give each
+  sentence one topic. Keep paragraphs to max 6 sentences.
+- Use the active voice and name the actor. Use the imperative for instructions. Stay in the
+  simple present or simple past tense.
+- Use one word for one meaning, and the same word every time — never a synonym for variety.
+- Use the simple word: use / start / do / show / before / about — not utilize / initiate /
+  perform / demonstrate / prior to / approximately.
+- Do not use idioms, metaphors, hedging, or filler. Keep noun clusters to max 3 words — break
+  longer chains with of / for / in.
+- Keep code identifiers, paths, commands, and quoted tool output verbatim — they are technical
+  names, exempt from these rules.
+- A required output shape wins over STE — hard rule 6's fragment bullets stay fragments; STE
+  governs the prose inside the shape.
 
 ## Flow
 
@@ -49,26 +75,49 @@ out. You dispatch the squad, but you write the code yourself (single-agent execu
    `issue-<number>` (e.g. `issue-625`).
 1. **Capture.** Dispatch `konoha:itachi` with the issue URL + workdir → dossier.
 2. **Gate.** If already fixed → stop and say so. If critically underspecified → ask the user. Else go.
-3. **Plan.** Dispatch `konoha:shikamaru` `action: plan` → `plan.md`.
-4. **Execute.** Implement the plan **yourself**, per `CLAUDE.md`. No fan-out to parallel writers.
-5. **Verify.** Dispatch `konoha:sakura` `action: verify`. If red, fix and re-verify (cap 3).
-6. **Council.** Invoke the `konoha:_council-review` skill (`mode: "fix"`) on the diff. Apply the **fix
-   adapter**: address each finding (accept / reject with reason), then re-run verify. Cap 2 rounds.
-7. **Resync.** `git fetch origin staging`; if the base moved since preflight, merge it into the
+3. **Plan (Codex architect).** Write Itachi's dossier to a scratch file, then run
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/architect-codex.sh" plan --dossier <file> --workdir <worktree>`
+   and save the output as `plan.md` in the worktree root. `plan.md` (and `deviations.md`, step 5)
+   stay **untracked — never stage them**. On any script failure: hard rule 10 — AskUserQuestion,
+   retry or stop.
+4. **Plan review.** Dispatch `konoha:shikamaru` `action: review-plan` with `{ plan, workdir }`. On
+   `blocking` findings, run ONE revision round: write the findings to a file and rerun the
+   architect with `--revise plan.md --findings <file>`; replace `plan.md`. If blocking findings
+   survive the revision, show them to the user and ask how to proceed. `minor` findings ride along
+   as execution notes.
+5. **Execute.** Implement `plan.md` **yourself**, per `CLAUDE.md`. No fan-out to parallel writers.
+   You follow the plan's Decision, Changes, Forbidden, and Tests sections. Log every deviation in
+   `deviations.md` (`- <plan item> — <what changed> — mechanical | GRANTED <id>`): a **mechanical**
+   deviation (renamed local, moved line, missing import) is logged and you continue; a
+   **design-level** deviation (different approach, new file, changed API, skipped test) requires a
+   GRANTED ruling first — write the contested item + evidence to a file and run
+   `architect-codex.sh arbitrate --contested <file> --plan plan.md --workdir <worktree>`.
+6. **Verify.** Dispatch `konoha:sakura` `action: verify`. If red, fix and re-verify (cap 3).
+7. **Council.** Invoke the `konoha:_council-review` skill (`mode: "fix"`, `planFile: "plan.md"`) on
+   the diff. Apply the **fix adapter**: fix accepted findings freely — accepting needs no
+   permission. To decline any finding, batch ALL contested findings of the round into one file
+   (id, finding, your objection, evidence) and run ONE `architect-codex.sh arbitrate` call; obey
+   every ruling (`DENIED` → fix it; `GRANTED` → declined, record the id). Then re-run verify.
+   Cap 2 rounds, max one arbitrate call per round.
+8. **Resync.** `git fetch origin staging`; if the base moved since preflight, merge it into the
    branch, fix semantic conflicts, and re-run the full gate set (`typecheck`, `lint`,
    `format:check`, tests) on the merged tree (hard rule 7).
-8. **PR body.** Dispatch `konoha:shikamaru` `action: draft-pr-body` (pass the mission's issue URL) →
+9. **PR body.** Dispatch `konoha:shikamaru` `action: draft-pr-body` (pass the mission's issue URL) →
    `{ title, body }` in the small-and-simple shape of hard rule 6. The body **must** link the issue
    with `Closes #<n>` (`Closes <owner>/<repo>#<n>` if the issue lives in a different repo than the
    PR) — that's the task link, non-negotiable.
-9. **Confirm (incl. YubiKey), then ship.** Show the user the title + body + a one-line diffstat and
-   get a single OK (`AskUserQuestion`) — in that same prompt, tell her the ship step pops her
-   **YubiKey PIN dialog + touch once per commit to sign and again to push**, so she should have the
-   key plugged in and be ready to approve each. Then dispatch `konoha:naruto` `action: commit` +
-   `action: open-pr` (`--draft --base staging`); Naruto drives both through her PIN popup (hard
-   rule 8). If any prompt stalls, give her the exact `git commit` / `git push` / `gh pr create` to
-   run herself.
-10. **Report** the Draft PR URL, then watch CI on the PR (`gh pr checks --watch` or poll) and fix
-    any red check before calling the mission done.
+10. **Confirm (incl. YubiKey), then ship.** Show the user the title + body + a one-line diffstat and
+    get a single OK (`AskUserQuestion`) — in that same prompt, tell her the ship step pops her
+    **YubiKey PIN dialog + touch once per commit to sign and again to push**, so she should have the
+    key plugged in and be ready to approve each. Then dispatch `konoha:naruto` `action: commit` +
+    `action: open-pr` (`--draft --base staging`); Naruto drives both through her PIN popup (hard
+    rule 8). If any prompt stalls, give her the exact `git commit` / `git push` / `gh pr create` to
+    run herself.
+11. **Report & log.** Report the Draft PR URL, then watch CI on the PR (`gh pr checks --watch` or
+    poll) and fix any red check before calling the mission done. Finally append one JSON line to
+    `~/.konoha/metrics.jsonl` (`mkdir -p ~/.konoha` first):
+    `{ ts, issue, pr, findings: { anbu, correctness, rules, gaara }, arbitrations: { asked, granted },
+    deviations, verify_rounds, plan_revised }` — this feeds the architect-vs-baseline comparison
+    (fewer frontend-review bot findings on the PR is the outcome metric).
 
 *(This is the council-powered evolution of your `work-on` skill.)*

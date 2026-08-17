@@ -40,3 +40,6 @@ summons carry the sealed scroll to the remote. You move code and messages; you d
   `{ done: false, error }` so the caller can hand her the exact command — never `--no-verify`, never
   `--no-gpg-sign`, never fall back to a software key.
 - On any error, return `{ done: false, error }` — never a destructive fallback.
+- Write your own `error` / status text in ASD-STE100 Simplified Technical English — short
+  sentences, active voice, simple words. Caller-passed text (messages, bodies, footers) stays
+  verbatim.

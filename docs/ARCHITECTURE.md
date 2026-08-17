@@ -10,10 +10,36 @@ exposes **one** entrypoint, konoha shares **one cast** across **four** skills.
 
 thk bakes its theme into its wiring (skills named `grand-maester`, etc.). konoha splits them:
 
-- **Engine** — a fixed set of neutral **offices** (capture, scholar, enforcer, red-team, shipwright,
-  counselor) + the flow.
+- **Engine** — a fixed set of neutral **offices** (capture, architect, scholar, enforcer, red-team,
+  shipwright, counselor) + the flow.
 - **Skin** — the Naruto cast is a naming layer on top. The theme could be reskinned without touching
   the flow.
+
+## The second idea (0.3.0): Codex decides, Claude executes
+
+Since 0.3.0 decision authority lives on the other model family. The design is symmetric — each
+family authors one layer and audits the other:
+
+- **GPT authors the plan; Claude reviews it.** The architect (Gaara on Codex,
+  `scripts/architect-codex.sh plan`, reasoning `high`) writes `plan.md` as a decision record:
+  chosen approach, rejected alternatives, files, forbidden anti-patterns, tests. Shikamaru
+  (Claude) then runs `review-plan` against the real codebase; blocking findings trigger one
+  architect revision round.
+- **Claude writes the code; GPT closes the review.** Kakashi executes the plan mechanically and
+  logs deviations; the council reviews the diff and the Gaara closer also checks it against
+  `plan.md`.
+- **Declining is not the executor's call.** Accepting a finding needs no permission. Declining a
+  council or review finding — or deviating from the plan on a design level — needs a `GRANTED`
+  ruling from `architect-codex.sh arbitrate` (contested items batched, one call per round).
+  `/debrief` follows the same rule for review feedback, which matters doubly because the
+  frontend-review CI bot runs on Codex: Claude no longer gets to dismiss GPT findings on its own.
+- **Fail closed at both Codex points.** A failed plan or arbitration halts the flow: retry or
+  stop, never a silent Claude substitute — same policy the Gaara closer always had. Provenance
+  stays honest; authority, not identity, settles disputes (the old "present GPT output as if
+  Claude wrote it" workaround is retired).
+- **Instrumented.** Every mission appends one JSON line to `~/.konoha/metrics.jsonl` (findings per
+  lens, arbitrations, deviations, verify rounds). The outcome metric for the architect-vs-baseline
+  A/B is how much the Codex frontend-review bot complains about the shipped PR.
 
 ## The cast
 
@@ -27,11 +53,11 @@ The six specialists are real subagents in `agents/*.md`, dispatched via the `Age
 | Agent | Office | Model | Job |
 |---|---|---|---|
 | `itachi` | Capture | opus | Sharingan — reads issue + comments + linked PRs + code + backend repos |
-| `shikamaru` | Scholar | opus | Root-cause, plan, correctness review, PR write-up, "convene?" verdict |
+| `shikamaru` | Scholar | opus | Plan review (architect's plan vs the real codebase), root-cause, correctness review, PR write-up, "convene?" verdict |
 | `sakura` | Enforcer | opus | Verification gauntlet (`pnpm check` + tests) + convention rules |
 | `anbu` | Red-team | opus | Adversarial security + edge-case review |
 | `naruto` | Shipwright | sonnet | Commit, push, open PRs, post comments/replies |
-| `gaara` | Counselor | **Codex CLI** | Outside read on a different model on purpose; the review closer — mandatory, never falls back to Claude |
+| `gaara` | Architect & Counselor | **Codex CLI** | The decision maker (0.3.0): authors `plan.md`, rules on contested findings (`architect-codex.sh`), and closes reviews (`gaara-codex.sh`) — mandatory, never falls back to Claude |
 
 *(Cut vs thk: no Budget / Master of Coin — Kakashi watches scope himself.)*
 
@@ -44,11 +70,11 @@ job — but v1 sets them directly in each agent's frontmatter instead of a profi
 |---|---|---|
 | Kakashi (orchestrator) | your session model (main loop) | runs `/mission` etc. in the main loop — can't be swapped per-agent; set it with `/model` |
 | Itachi | Claude Opus | the dossier seeds the whole mission — a misread ticket sends every downstream office the wrong way |
-| Shikamaru | Claude Opus | planning + correctness want the strongest reasoning |
+| Shikamaru | Claude Opus | plan review + correctness want the strongest reasoning — and a Claude audit of a GPT plan keeps the design layer cross-model |
 | Sakura | Claude Opus | it is a review lens, not just a command runner — `review-rules` was the council's weakest voice on Sonnet |
 | ANBU | Claude Opus | adversarial security wants deep reasoning |
 | Naruto | Claude Sonnet | git plumbing is destructive and the YubiKey push flow needs retry judgment — not pure mechanical fan-out |
-| Gaara | **Codex CLI** — always the newest GPT (currently `gpt-5.6-sol`, `model_reasoning_effort=high`) | genuine cross-model diversity for the outside read |
+| Gaara | **Codex CLI** — always the newest GPT (currently `gpt-5.6-sol`); review close defaults `GAARA_REASONING=medium`, plan/arbitrate default `ARCHITECT_REASONING=high` | genuine cross-model diversity for the outside read — and, since 0.3.0, for the decisions themselves (plan + arbitrate are one high-leverage call each) |
 
 Frontmatter uses the bare **aliases** (`opus`, `sonnet`, `haiku`, `fable`), never a pinned ID like
 `claude-opus-5`. Aliases resolve to the newest model in their tier, so every office stays current
@@ -57,7 +83,9 @@ without an edit — the same reason `gaara-codex.sh` resolves its model instead 
 roughly double, and these offices run on every mission and every exam.
 
 **Gaara on Codex.** `_council-review` runs `scripts/gaara-codex.sh` for the closer, which shells to
-`codex exec --sandbox read-only` (mirrors thk's Counselor Altman, but read-only for review). Requires
+`codex exec --sandbox read-only` (mirrors thk's Counselor Altman, but read-only for review). Since
+0.3.0 the same CLI also runs the architect — `scripts/architect-codex.sh` (`plan` + `arbitrate`,
+read-only, `ARCHITECT_REASONING` default `high`) — under the same fail-closed policy. Requires
 the `codex` CLI on PATH.
 
 The GPT read is the load-bearing part of the review — three Claude lenses grading a Claude change is
@@ -85,16 +113,20 @@ A full `profiles.json` (swap any office's model without editing files) is a late
 drafts a **lean** issue (Summary / Current / Desired only) and confirms at each gate. AI credit: n/a.
 
 ### `/mission <issue>` — take a GitHub issue to a Draft PR
-`itachi` capture → gate (already-fixed / needs-info / go) → `shikamaru` plan → **Kakashi executes**
-(single-agent, per `CLAUDE.md`) → `sakura` verify (fix-retry) → **`_council-review` (fix adapter)** →
-`shikamaru` drafts the PR body (links the issue with `Closes #<n>`) → **one confirm** → `naruto` opens
-the Draft PR (base `staging`). AI credit: **No** (your own PR).
+`itachi` capture → gate (already-fixed / needs-info / go) → **Codex architect plans**
+(`architect-codex.sh plan` → `plan.md`) → `shikamaru` reviews the plan (one revision round) →
+**Kakashi executes the plan** (single-agent, per `CLAUDE.md`, deviations logged; design deviations
+need a `GRANTED` ruling) → `sakura` verify (fix-retry) → **`_council-review` (fix adapter, plan
+passed to the closer)** — declines need an `arbitrate` ruling → `shikamaru` drafts the PR body
+(links the issue with `Closes #<n>`) → **one confirm** → `naruto` opens the Draft PR (base
+`staging`) → metrics line appended to `~/.konoha/metrics.jsonl`. AI credit: **No** (your own PR).
 
 ### `/debrief <pr-url>` — resolve the reviews on your PR
 Two inputs, in order: (1) the **PR URL** → pull comments via `gh` (the AI review bot first, then
 teammates); (2) then the skill **asks** if there's a **Slack** review to paste (optional). `shikamaru`
-maps the feedback to the task, Kakashi triages (accept / defer / decline) and fixes, `sakura` verifies,
-`naruto` commits + posts per-thread replies. AI credit: **No** (your own PR).
+maps the feedback to the task, Kakashi triages (accept / defer / decline-candidate) and fixes —
+declines need a `GRANTED` ruling from the Codex architect — `sakura` verifies, `naruto` commits +
+resolves fixed threads. AI credit: **No** (your own PR).
 
 ### `/exam <pr-url>` — review a colleague's PR
 Runs **`_council-review` (comment adapter)** on the PR, Kakashi consolidates the findings into **one**
@@ -111,6 +143,22 @@ of findings. The **caller** applies the output adapter:
 |---|---|---|---|
 | `/mission` | your own diff (pre-PR) | **fix** | Kakashi fixes findings, re-verifies, then ships |
 | `/exam` | a colleague's PR | **comment** | consolidate → one attributed comment |
+
+## Language standard: ASD-STE100
+
+Everything the squad writes for humans — dossiers, plans, findings, verify reports, PR bodies,
+review comments, issues, and Kakashi's own reports — follows **ASD-STE100 Simplified Technical
+English**: short sentences (max 20 words procedural / 25 descriptive), active voice with a named
+actor, one topic per sentence, one word per meaning, simple approved words, no idioms or filler.
+Code identifiers, paths, commands, and quoted tool output are technical names and stay verbatim. A
+required output shape (JSON envelope, PR fragment bullets, commit-message form) wins over STE; STE
+governs the prose inside it.
+
+Enforcement follows the plugin's inline-duplication convention (same as the Grep/Glob rule): a
+`## Language (ASD-STE100)` block sits in every agent and skill — a dispatched office reads no
+shared doc at runtime — plus one rule in the Codex prompt in `gaara-codex.sh` so Gaara follows it
+too. Naruto carries a one-line variant: his only self-authored text is `error` / status strings,
+and caller-passed text stays verbatim.
 
 ## Attribution matrix (flips by ownership)
 
@@ -129,7 +177,8 @@ konoha/
 ├── README.md
 ├── docs/ARCHITECTURE.md
 ├── agents/{itachi,shikamaru,sakura,anbu,naruto,gaara}.md
-├── scripts/gaara-codex.sh   ← Codex adapter for the counselor
+├── scripts/gaara-codex.sh      ← Codex adapter for the counselor (review close)
+├── scripts/architect-codex.sh  ← Codex adapter for the decision maker (plan + arbitrate)
 └── skills/
     ├── scroll/SKILL.md          ← create issue
     ├── mission/SKILL.md         ← ticket → Draft PR
@@ -173,4 +222,6 @@ The themed skills evolve logic you already have; your current skills stay untouc
 - **Phase 0** — cast + `/mission` spine (no council).
 - **Phase 1** — `_council-review` wired into `/mission` (fix) and `/exam` (comment). ← the payoff.
 - **Phase 2** — `/scroll` + `/debrief`, and Shikamaru's `assess` gate.
-- **Phase 3 (optional)** — profiles, plan-side review, local resume.
+- **Phase 3 (0.3.0, shipped)** — Codex as decision maker: architect plan + plan review + arbitration
+  + deviation log + metrics. Plan-side review arrived here, inverted (GPT authors, Claude reviews).
+- **Phase 4 (optional)** — profiles.json, local resume.
