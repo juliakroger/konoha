@@ -11,7 +11,7 @@ exposes **one** entrypoint, konoha shares **one cast** across **four** skills.
 thk bakes its theme into its wiring (skills named `grand-maester`, etc.). konoha splits them:
 
 - **Engine** — a fixed set of neutral **offices** (capture, architect, scholar, enforcer, red-team,
-  shipwright, counselor) + the flow.
+  illusion-dispel, shipwright, counselor) + the flow.
 - **Skin** — the Naruto cast is a naming layer on top. The theme could be reskinned without touching
   the flow.
 
@@ -37,9 +37,30 @@ family authors one layer and audits the other:
   stop, never a silent Claude substitute — same policy the Gaara closer always had. Provenance
   stays honest; authority, not identity, settles disputes (the old "present GPT output as if
   Claude wrote it" workaround is retired).
-- **Instrumented.** Every mission appends one JSON line to `~/.konoha/metrics.jsonl` (findings per
-  lens, arbitrations, deviations, verify rounds). The outcome metric for the architect-vs-baseline
-  A/B is how much the Codex frontend-review bot complains about the shipped PR.
+- **Instrumented.** Every mission appends one JSON line to `~/.konoha/metrics.jsonl` (level dials,
+  findings per lens, arbitrations, deviations, verify rounds). The outcome metric for the
+  architect-vs-baseline A/B is how much the Codex frontend-review bot complains about the shipped
+  PR — since 0.5.0 also sliced by level, to verify empirically that lite missions do not regress.
+
+## The third idea (0.5.0): two dials — difficulty × risk
+
+Mission size is not one scalar. Two independent dials size the ceremony, with different judges
+because they are knowable at different times:
+
+- **Difficulty** — how hard is the task? Judged up front from the dossier by Shikamaru `assess`
+  (never by Kakashi, who must not grade the scrutiny of his own work). `trivial` skips only the
+  architect plan + plan review; a design fork discovered mid-execution upgrades the mission back
+  to `standard`.
+- **Risk** — what does the diff touch? Not judged at all: `_council-review` computes it from the
+  final diff against the target repo's `.konoha/critical-paths` (one glob per line; missing file
+  = everything critical, fail strict). Any match → `full` council; no match → `lite`, which drops
+  ANBU only. No model call may lower the tier, and it can only upgrade mid-flight.
+
+The invariants never scale down: Sakura verify, Kurenai, the Gaara closer, the delta close
+(round 2 = Gaara alone on the fix diff via `--base`, so round-1 fixes never ship unreviewed),
+the single ship confirmation, and decline-needs-GRANTED run at every level. A copy fix in the
+withdraw modal is trivial-difficulty but full-risk; a big refactor of an uncritical view is the
+reverse — the dials move independently by design.
 
 ## The cast
 
@@ -47,15 +68,16 @@ family authors one layer and audits the other:
 in the main loop (`/mission`, `/debrief`), exactly as thk's Hand is the `/thk` skill, not an
 `agents/hand.md`. He routes, executes the plan himself, and synthesizes verdicts.
 
-The six specialists are real subagents in `agents/*.md`, dispatched via the `Agent` tool
+The seven specialists are real subagents in `agents/*.md`, dispatched via the `Agent` tool
 (`subagent_type: "konoha:<name>"`):
 
 | Agent | Office | Model | Job |
 |---|---|---|---|
 | `itachi` | Capture | opus | Sharingan — reads issue + comments + linked PRs + code + backend repos |
-| `shikamaru` | Scholar | opus | Plan review (architect's plan vs the real codebase), root-cause, correctness review, PR write-up, "convene?" verdict |
+| `shikamaru` | Scholar | opus | Plan review (architect's plan vs the real codebase), root-cause, correctness review, PR write-up, difficulty verdict (`assess`) |
 | `sakura` | Enforcer | opus | Verification gauntlet (`pnpm check` + tests) + convention rules |
-| `anbu` | Red-team | opus | Adversarial security + edge-case review |
+| `anbu` | Red-team | opus | Adversarial security + edge-case + failure-path review (full-tier council only) |
+| `kurenai` | Illusion-dispel | opus | Genjutsu release (Kai) — AI-output review: hallucinated symbols, invented compatibility, prompt leakage, narration, fabricated tests; every finding carries its dispel proof |
 | `naruto` | Shipwright | sonnet | Commit, push, open PRs, post comments/replies |
 | `gaara` | Architect & Counselor | **Codex CLI** | The decision maker (0.3.0): authors `plan.md`, rules on contested findings (`architect-codex.sh`), and closes reviews (`gaara-codex.sh`) — mandatory, never falls back to Claude |
 
@@ -73,6 +95,7 @@ job — but v1 sets them directly in each agent's frontmatter instead of a profi
 | Shikamaru | Claude Opus | plan review + correctness want the strongest reasoning — and a Claude audit of a GPT plan keeps the design layer cross-model |
 | Sakura | Claude Opus | it is a review lens, not just a command runner — `review-rules` was the council's weakest voice on Sonnet |
 | ANBU | Claude Opus | adversarial security wants deep reasoning |
+| Kurenai | Claude Opus | proving a symbol absent without hallucinating the absence is the hard part — the dispel check wants the strongest reasoning |
 | Naruto | Claude Sonnet | git plumbing is destructive and the YubiKey push flow needs retry judgment — not pure mechanical fan-out |
 | Gaara | **Codex CLI** — always the newest GPT (currently `gpt-5.6-sol`); review close defaults `GAARA_REASONING=medium`, plan/arbitrate default `ARCHITECT_REASONING=high` | genuine cross-model diversity for the outside read — and, since 0.3.0, for the decisions themselves (plan + arbitrate are one high-leverage call each) |
 
@@ -88,7 +111,7 @@ roughly double, and these offices run on every mission and every exam.
 read-only, `ARCHITECT_REASONING` default `high`) — under the same fail-closed policy. Requires
 the `codex` CLI on PATH.
 
-The GPT read is the load-bearing part of the review — three Claude lenses grading a Claude change is
+The GPT read is the load-bearing part of the review — four Claude lenses grading a Claude change is
 exactly the blind spot it exists to break — so it is **mandatory and never substituted**. If the
 script fails for any reason (`CODEX_UNAVAILABLE` exit 3, `EMPTY_DIFF` exit 4, auth / network /
 rate-limit / timeout, empty output), the module stops and asks the user to **retry or stop**. It must
@@ -102,8 +125,9 @@ as `$GAARA_MODEL` → the `model` key in `~/.codex/config.toml` → a fallback p
 resolved model to stderr so a review always records which GPT closed it. Keeping `codex` current is
 therefore all it takes to keep Gaara current.
 
-Because a failed closer now halts the review, the script takes the local diff against `HEAD` and adds
-untracked files — a plain `git diff` reported auto-staged edits and add-only changes as `EMPTY_DIFF`.
+Because a failed closer now halts the review, the script takes the local diff against `HEAD` (or a
+`--base <ref>` snapshot — the delta close) and adds untracked files — a plain `git diff` reported
+auto-staged edits and add-only changes as `EMPTY_DIFF`.
 A full `profiles.json` (swap any office's model without editing files) is a later phase.
 
 ## The four skills
@@ -113,12 +137,15 @@ A full `profiles.json` (swap any office's model without editing files) is a late
 drafts a **lean** issue (Summary / Current / Desired only) and confirms at each gate. AI credit: n/a.
 
 ### `/mission <issue>` — take a GitHub issue to a Draft PR
-`itachi` capture → gate (already-fixed / needs-info / go) → **Codex architect plans**
-(`architect-codex.sh plan` → `plan.md`) → `shikamaru` reviews the plan (one revision round) →
-**Kakashi executes the plan** (single-agent, per `CLAUDE.md`, deviations logged; design deviations
-need a `GRANTED` ruling) → `sakura` verify (fix-retry) → **`_council-review` (fix adapter, plan
-passed to the closer)** — declines need an `arbitrate` ruling → `shikamaru` drafts the PR body
-(links the issue with `Closes #<n>`) → **one confirm** → `naruto` opens the Draft PR (base
+`itachi` capture → gate (already-fixed / needs-info / go) → `shikamaru` **assess** (difficulty
+dial; `trivial` skips the two plan steps) → **Codex architect plans** (`architect-codex.sh plan` →
+`plan.md`; `standard` only) → `shikamaru` reviews the plan (one revision round) → **Kakashi
+executes** (single-agent, per `CLAUDE.md`, deviations logged; design deviations need a `GRANTED`
+ruling; a design fork on `trivial` upgrades to `standard`) → `sakura` verify (fix-retry) →
+**`_council-review` (fix adapter, plan passed to the closer; risk tier computed vs
+`.konoha/critical-paths`)** — declines need an `arbitrate` ruling → **delta close** (Gaara alone
+on the fix diff via `--base` snapshot) → `shikamaru` drafts the PR body (links the issue with
+`Closes #<n>`) → **one confirm** (states both dials) → `naruto` opens the Draft PR (base
 `staging`) → metrics line appended to `~/.konoha/metrics.jsonl`. AI credit: **No** (your own PR).
 
 ### `/debrief <pr-url>` — resolve the reviews on your PR
@@ -136,7 +163,7 @@ Approve / Request-changes. AI credit: **Yes** — `🍃 Review generated with Ju
 ## The shared module: `_council-review`
 
 Both `/mission` and `/exam` run the same diff review — `anbu` ∥ `shikamaru` (`review-correctness`) ∥
-`sakura` (`review-rules`) in parallel, then `gaara` closes — and return one consolidated, deduped list
+`sakura` (`review-rules`) ∥ `kurenai` in parallel, then `gaara` closes — and return one consolidated, deduped list
 of findings. The **caller** applies the output adapter:
 
 | Caller | Target | Adapter | Result |
@@ -176,7 +203,7 @@ konoha/
 ├── .claude-plugin/{plugin.json, marketplace.json}
 ├── README.md
 ├── docs/ARCHITECTURE.md
-├── agents/{itachi,shikamaru,sakura,anbu,naruto,gaara}.md
+├── agents/{itachi,shikamaru,sakura,anbu,kurenai,naruto,gaara}.md
 ├── scripts/gaara-codex.sh      ← Codex adapter for the counselor (review close)
 ├── scripts/architect-codex.sh  ← Codex adapter for the decision maker (plan + arbitrate)
 └── skills/
@@ -224,4 +251,10 @@ The themed skills evolve logic you already have; your current skills stay untouc
 - **Phase 2** — `/scroll` + `/debrief`, and Shikamaru's `assess` gate.
 - **Phase 3 (0.3.0, shipped)** — Codex as decision maker: architect plan + plan review + arbitration
   + deviation log + metrics. Plan-side review arrived here, inverted (GPT authors, Claude reviews).
+- **Phase 3.5 (0.4.0, shipped)** — Kurenai joins the council: the AI-output lens — hallucinated
+  symbols, invented compatibility, prompt leakage, narration, fabricated tests — under the dispel
+  rule (no finding without proof of absence).
+- **Phase 3.6 (0.5.0, shipped)** — two dials (difficulty via `assess`, risk computed vs
+  `.konoha/critical-paths`; `lite` drops ANBU only), ANBU failure-path lens, delta close
+  (`gaara-codex.sh --base` on the fix diff), stale "Shikamaru plans" description fixed.
 - **Phase 4 (optional)** — profiles.json, local resume.

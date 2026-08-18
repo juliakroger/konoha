@@ -7,7 +7,7 @@
     {
       "name": "konoha",
       "source": "./",
-      "version": "0.3.0",
+      "version": "0.5.0",
       "description": "A squad of Konoha ninja (subagents) powering four dev-workflow skills: /scroll, /mission, /debrief, /exam. Codex decides, Claude executes."
     }
   ]

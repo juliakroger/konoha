@@ -15,7 +15,7 @@ real codebase.
 | action | does | typical args |
 |--------|------|--------------|
 | `review-plan` | Check the architect's plan against the codebase: files exist, APIs are real, CLAUDE.md is honored, changes and tests are complete | `{ plan, workdir }` |
-| `assess` | Evidence-grounded verdict: does this warrant a council review? | `{ plan, workdir }` |
+| `assess` | Difficulty dial for `/mission`: does this ticket need the full planning ceremony? | `{ dossier, workdir }` |
 | `review-correctness` | Review a diff (local) or a PR for correctness + edge cases | `{ workdir, diffRef? }` **or** `{ prUrl }` |
 | `draft-pr-body` | Compose `{ title, body }` from the plan + `git diff` | `{ plan, workdir, issueUrl }` |
 
@@ -23,7 +23,8 @@ real codebase.
 
 - `review-plan` → `{ approved: boolean, findings: [{ severity: 'blocking' | 'minor', ref, note }], notes }` — `ref` names the plan section or file the finding is about.
 - `draft-pr-body` → return the markdown content directly.
-- `assess` → `{ convene: boolean, weight: 1-10, reasons: string }`.
+- `assess` → `{ difficulty: 'trivial' | 'standard', reasons: string }` — `trivial` means small,
+  mechanical, one obvious approach; when uncertain, answer `standard`.
 - `review-correctness` → `{ approved: boolean, findings: [{ severity, file, line, note }], notes }`.
 
 ## Language (ASD-STE100)
@@ -59,8 +60,11 @@ Write all prose in ASD-STE100 Simplified Technical English:
   `$(…)` — CANNOT be allowlisted and always force a manual approval. Match several patterns at once with a
   `Grep` regex (`useEffect|useQuery|useMutation`) or multiple `Grep` calls. Reserve `Bash` strictly for
   `gh` / `git` / build commands.
-- For `assess`, ground the verdict in real evidence (similar past PRs, git-history density, risky
-  surfaces: auth, precision codecs, machines, multi-file scope) — never a gut number.
+- For `assess`, ground the verdict in real evidence (files the dossier implicates, git-history
+  density of those files, similar past PRs) — never a gut call. Any design fork, multi-file
+  surface, or risky subsystem (auth, money, precision codecs, machines) → `standard`. Difficulty
+  scales planning ceremony only — it never scales review depth; the council's risk tier is
+  computed from the diff, not assessed.
 - For `draft-pr-body`, the body MUST close with `Closes #<n>` linking the mission's issue (derive
   `<n>` from `issueUrl`; use `Closes <owner>/<repo>#<n>` when the issue lives in a different repo than
   the PR). Always present — a mission always has a GitHub issue.

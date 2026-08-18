@@ -5,8 +5,10 @@
 # reviewers missed. Prints Codex's prose verdict to stdout.
 #
 # Usage:
-#   gaara-codex.sh --workdir <abs> [--pr <url>] [--prior <file>] [--plan <file>]
+#   gaara-codex.sh --workdir <abs> [--pr <url>] [--base <ref>] [--prior <file>] [--plan <file>]
 #     --workdir   repo/worktree to run in (defaults to $PWD)
+#     --base      diff against this ref instead of HEAD (the /mission delta close
+#                 after round-1 fixes; untracked files still appear in full)
 #   env GAARA_MODEL=<id>        force a model; otherwise the codex config's `model` wins
 #                               (see the resolution block below — keep Gaara on the newest)
 #   env GAARA_REASONING=<tier>  model_reasoning_effort (default medium — high roughly
@@ -25,11 +27,12 @@
 # never substitute the Claude gaara agent for a failed run here.
 set -euo pipefail
 
-WORKDIR="$PWD"; PR=""; PRIOR=""; PLAN=""
+WORKDIR="$PWD"; PR=""; BASE="HEAD"; PRIOR=""; PLAN=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --workdir) WORKDIR="$2"; shift 2 ;;
     --pr)      PR="$2";      shift 2 ;;
+    --base)    BASE="$2";    shift 2 ;;
     --prior)   PRIOR="$2";   shift 2 ;;
     --plan)    PLAN="$2";    shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -42,9 +45,9 @@ cd "$WORKDIR"
 if [ -n "$PR" ]; then
   DIFF="$(gh pr diff "$PR")"
 else
-  # Against HEAD, plus untracked files: some setups auto-stage every edit, and a
-  # plain `git diff` reports those (and any add-only change) as an empty diff.
-  DIFF="$(git diff HEAD)"
+  # Against $BASE (default HEAD), plus untracked files: some setups auto-stage every
+  # edit, and a plain `git diff` reports those (and any add-only change) as an empty diff.
+  DIFF="$(git diff "$BASE")"
   UNTRACKED="$(git ls-files --others --exclude-standard)"
   while IFS= read -r f; do
     [ -n "$f" ] || continue

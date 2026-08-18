@@ -1,7 +1,7 @@
 {
   "name": "konoha",
-  "version": "0.3.0",
-  "description": "A squad of Konoha ninja (reusable subagents) that power four dev-workflow skills: /scroll (draft an issue), /mission (ticket to Draft PR), /debrief (resolve the reviews on your PR), and /exam (review a colleague's PR). Since 0.3.0 Codex (newest GPT) is the decision maker — it authors the plan and rules on contested findings — and Claude executes. Inspired by thk, but where thk has one entrypoint, konoha shares one cast across four skills. Naruto-themed skin over a neutral engine.",
+  "version": "0.5.0",
+  "description": "A squad of Konoha ninja (reusable subagents) that power four dev-workflow skills: /scroll (draft an issue), /mission (ticket to Draft PR), /debrief (resolve the reviews on your PR), and /exam (review a colleague's PR). Since 0.3.0 Codex (newest GPT) is the decision maker — it authors the plan and rules on contested findings — and Claude executes. 0.4.0 added Kurenai, the illusion-dispel AI-output lens (hallucinated APIs + slop); 0.5.0 adds two-dial mission tiering (difficulty × risk), the ANBU failure-path lens, and the delta close. Inspired by thk, but where thk has one entrypoint, konoha shares one cast across four skills. Naruto-themed skin over a neutral engine.",
   "author": {
     "name": "Julia Kroger"
   },

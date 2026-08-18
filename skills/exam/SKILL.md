@@ -1,6 +1,6 @@
 ---
 name: exam
-description: Review a colleague's pull request. The council inspects the PR — ANBU (security), Shikamaru (correctness), Sakura (conventions), Gaara (outside read) — and you (Kakashi) consolidate everything into ONE PR review posted in the user's name (COMMENT event, so it lands in the Reviews section), with a footer stating it was generated with their Claude. Never Approve / Request-changes — the verdict stays with the user. Use when the user says "review <PR>", "check my colleague's PR", or invokes /exam.
+description: Review a colleague's pull request. The council inspects the PR — ANBU (security), Shikamaru (correctness), Sakura (conventions), Kurenai (AI-output), Gaara (outside read) — and you (Kakashi) consolidate everything into ONE PR review posted in the user's name (COMMENT event, so it lands in the Reviews section), with a footer stating it was generated with their Claude. Never Approve / Request-changes — the verdict stays with the user. Use when the user says "review <PR>", "check my colleague's PR", or invokes /exam.
 ---
 
 # /exam — proctor the Chūnin Exam 🍃
@@ -41,7 +41,7 @@ Write all prose — the review body above all — in ASD-STE100 Simplified Techn
 1. **Read the PR.** `gh pr view <url>` + `gh pr diff <url>`.
 2. **Council.** Invoke the `konoha:_council-review` skill (`mode: "comment"`) with `{ prUrl }`.
 3. **Consolidate.** Kakashi turns the findings into one readable review body: a one-line overall take,
-   then grouped notes (Correctness / Security / Conventions), each citing `file:line`, most important
+   then grouped notes (Correctness / Security / Conventions / AI-output), each citing `file:line`, most important
    first. Keep it constructive and skimmable. Drop empty sections. If the council found nothing
    substantive, say so honestly (a short "looks good, minor notes" is fine).
 4. **Confirm (light).** Show the drafted review to the user; on OK, dispatch `konoha:naruto`

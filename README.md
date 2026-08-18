@@ -19,19 +19,20 @@ skills summon.
 Each office runs on a configured AI. In **0.2** Claude decided and GPT only closed the review;
 in **0.3** the roles inverted — **Codex decides, Claude executes**.
 
-| Ninja | Role | Job | AI in 0.2 | AI in 0.3 |
+| Ninja | Role | Job | AI in 0.2 | AI in 0.3+ |
 |---|---|---|---|---|
 | **Kakashi** | Orchestrator | Runs each mission from the main loop; routes and executes *(a persona in the skills, not a dispatched agent — like thk's Hand)* | your session model (Claude) — decided AND executed | your session model (Claude) — executes the architect's plan; contested calls go to Codex |
 | **Itachi** | Capture | Sharingan — reads & remembers everything: issue + comments + linked PRs + code + backend repos | Claude Opus | Claude Opus *(unchanged)* |
 | **Shikamaru** | Scholar | Root-cause, git history, plan work, PR write-up, correctness review | Claude Opus — **authored** the plan | Claude Opus — **reviews** the architect's plan against the codebase; no longer authors it |
 | **Sakura** | Enforcer | Verification gauntlet (`pnpm check` + tests = "vitals green") + convention rules | Claude Opus | Claude Opus *(unchanged)* |
-| **ANBU** | Red-team | Covert adversarial review — security + edge cases | Claude Opus | Claude Opus *(unchanged)* |
+| **ANBU** | Red-team | Covert adversarial review — security + edge cases + failure paths (timeouts, retries, rollback, data loss) | Claude Opus | Claude Opus *(unchanged)* |
+| **Kurenai** | Illusion-dispel | Genjutsu release (*Kai*) — AI-output review: hallucinated APIs, invented compatibility, prompt leakage, narration, fabricated tests | — | Claude Opus *(joined in 0.4)* |
 | **Naruto** | Shipwright | Kage Bunshin + toad summons — commit, push, open PRs, post comments/replies | Claude Sonnet | Claude Sonnet *(unchanged)* |
 | **Gaara** | Architect & Counselor | Kazekage of Suna — a different village = a different model | Codex CLI (newest GPT) — review closer only | Codex CLI (newest GPT) — **the decision maker**: authors `plan.md`, rules on contested findings, closes reviews |
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Five rules baked in
+## Six rules baked in
 
 1. **The council-review module is shared** between `/mission` (fixes findings before shipping) and
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
@@ -47,6 +48,10 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
    mission plan and rules on every contested item; Claude implements the plan and may not decline
    a review finding on its own — a decline needs a `GRANTED` ruling. If Codex is down, konoha
    stops and asks — it never quietly substitutes a Claude opinion under Gaara's name.
+6. **Ceremony scales; invariants don't.** Two dials size each mission — difficulty (Shikamaru
+   `assess`) scales the planning ceremony, risk (computed from the diff against the repo's
+   `.konoha/critical-paths`, never judged) scales the council. Verify, Kurenai, the Gaara closer,
+   the delta close, the single ship confirm, and decline-needs-GRANTED never scale down.
 
 ## Install (local)
 
