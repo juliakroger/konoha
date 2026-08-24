@@ -10,10 +10,15 @@ caller decides what to do with them.
 
 ## Input
 
-`{ target: { workdir, diffRef? } | { prUrl }, mode: "fix" | "comment", planFile? }`
+`{ target: { workdir, diffRef? } | { prUrl }, mode: "fix" | "comment", base?, planFile? }`
 
 `planFile` is the architect's `plan.md` — `/mission` passes it; `/exam` has none. It goes to the
 Gaara closer so the outside read also verifies the diff implements the plan.
+
+`base` is the merge-base SHA. `/exam` always passes it. When it is present, pass it to every lens
+and require the base check below — the caller cannot classify a finding's provenance without it.
+When it is absent, resolve it yourself (`git merge-base <head> <baseBranch>`) rather than skipping
+the check.
 
 ## Risk tier — computed, never judged
 
@@ -44,6 +49,20 @@ may lower it, and a diff that grew into a critical path since an earlier check u
 3. **Consolidate** — merge all findings, dedupe by `file:line + note`, sort by severity
    (high → med → low). Note where reviewers disagree.
 
+## The base check — every finding carries one
+
+Tell every lens, in its dispatch prompt: **for each finding, run `git show <base>:<path>` (or the
+same check against `<base>`) and report whether the defect reproduces there.** Return it as
+`baseCheck: 'reproduces' | 'absent' | 'unknown'` on the finding.
+
+This is not optional and it is not a judgement. It is one command, and it is the only thing that
+separates "this PR broke it" from "this was already broken". Without it the caller cannot tell an
+author what is theirs to fix, and reviews grow into 50-file cleanups.
+
+`unknown` is allowed only when the file is new in the diff (nothing to compare) — say so. A lens
+that asserts "pre-existing" or "regression" with `baseCheck: 'unknown'` has not done the work;
+the caller re-runs it during its own verify pass.
+
 ## Gaara is mandatory — never substitute, never skip
 
 The outside GPT read is the point of the closer: four Claude lenses grading a Claude change is the
@@ -66,8 +85,16 @@ Hard prohibitions, no exceptions:
 ## Output
 
 ```
-{ findings: [{ severity, file, line, note, from }], tier: 'full' | 'lite', summary: string }
+{ findings: [{ severity, file, line, note, from, baseCheck, evidence }],
+  tier: 'full' | 'lite', base: string, summary: string }
 ```
+
+- `baseCheck` — `'reproduces' | 'absent' | 'unknown'`, per §The base check.
+- `evidence` — the command the lens ran and what it returned. A finding with no evidence is a lead,
+  not a result; the caller drops it unless its own verify pass confirms it.
+
+The caller re-verifies before acting. This module optimises for recall; the caller optimises for
+precision. Return the lead and its evidence — do not soften a claim to make it survive.
 
 ## Language (ASD-STE100)
 
