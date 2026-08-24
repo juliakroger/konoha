@@ -38,6 +38,16 @@ This happened in `/exam` on PR #980. Two items posted as blockers —
 were **verbatim identical at the merge base**. One `git show <base>:<file>` would have caught both.
 That check is now mandatory.
 
+## Why the review has no preamble and no clean list
+
+Author feedback (Julia, 2026-08-24, on the `/exam` review for PR #984): the opening take and the
+"Checked and clean" list read as padding wrapped around the findings that mattered. Both are written
+for the reviewer, not the author — one performs politeness, the other performs diligence. Neither
+changes what the author does next.
+
+So the review opens on the first problem, and a passing check is never reported. Run every check
+anyway: the discipline is the point, the transcript is not. See §Review body.
+
 ## Language (ASD-STE100)
 
 Write all prose — the review body above all — in ASD-STE100 Simplified Technical English:
@@ -62,13 +72,44 @@ Write all prose — the review body above all — in ASD-STE100 Simplified Techn
    names one — the issue's acceptance criteria are the scope boundary you judge against.
 2. **Pin the merge base.** `BASE=$(git merge-base <prHead> origin/<baseBranch>)`. Record it. Every
    later step compares against this exact SHA. Without it you cannot classify anything.
-3. **Council.** Invoke the `konoha:_council-review` skill (`mode: "comment"`) with `{ prUrl, base }`.
-4. **Verify — §Verify below.** Mandatory. Findings that fail are dropped, never softened.
-5. **Classify — §Classify below.** Mandatory. Every surviving finding gets exactly one label.
-6. **Consolidate — §Review body below.** Only `NEW` and `NEWLY-REACHABLE` reach the PR.
-7. **Hand back — §Two blocks at the end below.** Print BOTH blocks in full, then one
+3. **Prepare a checkout — §Worktree below.** The lenses need the post-change tree, not just a diff.
+4. **Council.** Invoke the `konoha:_council-review` skill (`mode: "comment"`) with
+   `{ prUrl, base, workdir }`.
+5. **Verify — §Verify below.** Mandatory. Findings that fail are dropped, never softened.
+6. **Classify — §Classify below.** Mandatory. Every surviving finding gets exactly one label.
+7. **Consolidate — §Review body below.** Only `NEW` and `NEWLY-REACHABLE` reach the PR.
+8. **Hand back — §Two blocks at the end below.** Print BOTH blocks in full, then one
    `AskUserQuestion` gate. On OK, dispatch `konoha:naruto` `action: review` to post block A.
-8. **Report** the posted review URL.
+9. **Report** the posted review URL.
+
+## Worktree
+
+The lenses read the post-change tree, run the touched specs, and mutate source to prove a test is
+real. A diff alone cannot carry that, so build a checkout before the council and pass it as
+`workdir`.
+
+```bash
+git -c credential.helper='!gh auth git-credential' \
+  fetch <httpsRemoteUrl> pull/<n>/head:refs/konoha/pr<n>
+git worktree add --detach "$WD" refs/konoha/pr<n>
+```
+
+Use the one-off HTTPS fetch: an SSH fetch on a `verify-required` key pops the hardware-key dialog
+for a read. The `git@` remote stays untouched.
+
+Then make the checkout runnable, or every gate a lens runs is a false red:
+
+```bash
+cp "$MAIN_WT/.env" "$WD/.env"                 # a worktree inherits no .env
+ln -s "$MAIN_WT/node_modules" "$WD/node_modules"
+rsync -a --exclude '.git' "$MAIN_WT/tradingview/" "$WD/tradingview/"   # submodule is empty
+```
+
+Do NOT ask which stack this targets. A review runs the suite; it does not point at a backend.
+Copy `APP_ENV` as it is — that is `/mission`'s question, not this one.
+
+Warn the lenses that they share the worktree: a mutation one runs is visible to the others, so each
+must revert its own and leave `git status --porcelain` empty. Remove the worktree when you finish.
 
 ## Verify
 
@@ -118,22 +159,29 @@ Rules:
 Target **≤ 600 words**. Hard ceiling 900. If the content does not fit, you are including things that
 belong in block B.
 
+**Open on the first problem.** No lead paragraph, no "good work", no summary of what the PR does
+well, no restatement of what it changes. The author wrote it and the description already says it.
+The first line of the review is the first finding.
+
 Shape:
 
-1. **One-line take.** Honest. Name what the PR does well before the problems.
-2. **Blockers** — the `NEW` findings that should stop a merge. Each ≤ 120 words: the mechanism, the
+1. **Blockers** — the `NEW` findings that should stop a merge. Each ≤ 120 words: the mechanism, the
    `file:line`, and a concrete failure scenario. Most important first.
-3. **Other in-scope notes** — remaining `NEW` and `NEWLY-REACHABLE`, one or two sentences each.
-4. **Out of scope** (only if any) — ONE line telling the author that pre-existing items were found
+2. **Other notes** — remaining `NEW` and `NEWLY-REACHABLE`, one or two sentences each.
+3. **Out of scope** (only if any) — ONE line telling the author that pre-existing items were found
    and are tracked elsewhere. Do not list them here; they live in block B.
-5. **Checked and clean** — at most **3** bullets, and only where it de-risks the author ("I confirmed
-   order submission is not affected"). Not a transcript of everything the council verified.
 
 Cap the in-scope list at **8 items**. Beyond that, keep the top 8 and move the rest to block B —
 a longer list does not get read.
 
-Drop empty sections. If the council found nothing substantive after §Verify, say so plainly; a short
-"looks good, two minor notes" is a complete and honest review.
+**Never write a "Checked and clean" section.** Run every check — the base check, the refactor diff,
+typecheck, lint, format, the touched specs — and report none of the ones that passed. A passing
+check is not news; it is the job. Only a check that raised a problem earns a line, and then it earns
+it as a finding. The evidence for what passed belongs in the report to the user, never on the PR.
+
+Drop empty sections. If the council found nothing substantive after §Verify, say that in one line
+and stop — "Nothing blocking; two nits below" or, with nothing at all, "Nothing to flag." A short
+review is a complete and honest review.
 
 ## Two blocks at the end
 
@@ -169,8 +217,9 @@ The review and both blocks are read by a busy person on a phone. Apply this on t
 
 - **Lead with the thing to do.** First sentence of a finding says what is wrong. Mechanism second.
 - **One finding, one paragraph.** No sub-bullets, no nested structure inside a finding.
-- **Cut the audit trail.** The user does not need the lens name, the mutation you ran, or how many
-  agents agreed. Keep the proof for the report to the user, not the review.
+- **Cut the audit trail.** The user does not need the lens name, the mutation you ran, how many
+  agents agreed, or which checks came back green. Keep the proof for the report to the user, not
+  the review.
 - **No tables in the review body.** They do not render well in a PR comment on a phone.
 - **Quote at most 3 lines of code per finding**, and only when the code is the point.
 - **Say the number, not the range.** "Base line 674 is identical" beats "appears to be pre-existing".
