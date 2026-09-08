@@ -40,6 +40,16 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
    stop, the contested items are NEVER silently declined — list them in the final report as
    "needs your call". The frontend-review bot runs on Codex, so this also ends the pattern of
    Claude unilaterally dismissing GPT findings.
+9. **PR images belong to Julia (0.8.0).** The PR body is hers, and she drags screenshots into it
+   in the browser. A fix can make a body line stale — a bullet now wrong, a caveat resolved. Then
+   edit the body minimally: fetch the live body right before the edit
+   (`gh pr view <url> --json body -q .body`), change only the stale lines, keep every image or
+   attachment reference verbatim on its own line in its slot, and ship it through Naruto
+   `edit-pr` (`"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh" edit`), which refuses a body that
+   drops, adds, reorders, rewrites, or inlines one. Never rewrite the body wholesale, never
+   regenerate it from a draft or from memory, never run `gh pr edit --body` / `--body-file`
+   directly. A removed image stays removed; a changed one stays as she changed it; you never add
+   one — `gh` cannot upload it, so any reference you would add is invented.
 
 ## Language (ASD-STE100)
 
@@ -79,9 +89,12 @@ Technical English:
    resolved — look up thread ids via
    `gh api graphql` on `pullRequest.reviewThreads` (match a thread by its first comment's
    `databaseId`), then `mutation { resolveReviewThread(input: {threadId: "..."}) }`.
-   No replies, ever (hard rule 5).
-7. **Report** a summary: accepted / deferred / declined counts + the new commits, plus the
-   unresolved threads that need a human answer — each with a one-line suggested reply the user
-   can send when they want to.
+   No replies, ever (hard rule 5). If a fix made a body line stale, update the body now — hard
+   rule 9: a minimal edit of the live body, dispatched as `konoha:naruto` `action: edit-pr` with
+   `{ prUrl, bodyFile, script }` (`script` = the absolute path of
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh"`).
+7. **Report** a summary: accepted / deferred / declined counts + the new commits + the body edit
+   (if any), plus the unresolved threads that need a human answer — each with a one-line
+   suggested reply the user can send when they want to.
 
 *(This extends your `resolve-comments` skill with the Slack-text second input.)*

@@ -55,6 +55,19 @@ out. You dispatch the squad, but you write the code yourself (single-agent execu
     `.konoha/critical-paths` — never judged, never lowered by a model call. At every level:
     Sakura verify, the council per its risk tier, Kurenai, the Gaara closer, the delta close,
     the single ship confirmation, and decline-needs-GRANTED all still run.
+12. **PR images belong to Julia (0.8.0).** She drags screenshots into the PR body in the browser
+    after the PR exists; `gh` cannot upload one. So the body you author (step 11) carries no image
+    or attachment reference — such a reference is stale or invented, and the guard rejects it.
+    When the PR already exists (a re-gate after her answer changed the diff, a follow-up amend, a
+    stale caveat line), never regenerate the body from a scratch draft or from memory: fetch the
+    live body right before the edit (`gh pr view <url> --json body -q .body`), change only the
+    lines the update is about, keep every image reference verbatim on its own line in its slot,
+    and ship it through Naruto `edit-pr`, which runs
+    `"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh" edit` — the guard refuses a body that drops, adds,
+    reorders, rewrites, or inlines one. If the live body has no image, the new body has none: she
+    removed it, do not restore it. If she changed one, the live version is the one that survives.
+    Never run `gh pr edit --body` / `--body-file` directly. If she asks for an image change, tell
+    her to make it in the browser.
 
 ## Language (ASD-STE100)
 
@@ -128,14 +141,18 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
 11. **PR body.** Dispatch `konoha:shikamaru` `action: draft-pr-body` (pass the mission's issue URL) →
     `{ title, body }` in the small-and-simple shape of hard rule 6. The body **must** link the issue
     with `Closes #<n>` (`Closes <owner>/<repo>#<n>` if the issue lives in a different repo than the
-    PR) — that's the task link, non-negotiable.
+    PR) — that's the task link, non-negotiable. The draft carries no image or attachment
+    reference (hard rule 12). Resolve `"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh"` to an absolute
+    path now — Naruto gets it as `script`.
 12. **Confirm (incl. YubiKey), then ship.** Show the user the title + body + a one-line diffstat +
     the dials (`difficulty`, council `tier`) and get a single OK (`AskUserQuestion`) — in that same
     prompt, tell her the ship step pops her **YubiKey PIN dialog + touch once per commit to sign
     and again to push**, so she should have the key plugged in and be ready to approve each. Then
-    dispatch `konoha:naruto` `action: commit` + `action: open-pr` (`--draft --base staging`);
-    Naruto drives both through her PIN popup (hard rule 8). If any prompt stalls, give her the
-    exact `git commit` / `git push` / `gh pr create` to run herself.
+    dispatch `konoha:naruto` `action: commit` + `action: open-pr` (`--draft --base staging`, with
+    `script` so it runs the create-time image check); Naruto drives both through her PIN popup
+    (hard rule 8). When the PR already exists, dispatch `action: edit-pr` with the live-body-based
+    file instead of `open-pr` (hard rule 12). If any prompt stalls, give her the exact
+    `git commit` / `git push` / `gh pr create` to run herself.
 13. **Report & log.** Report the Draft PR URL, then watch CI on the PR (`gh pr checks --watch` or
     poll) and fix any red check before calling the mission done. Finally append one JSON line to
     `~/.konoha/metrics.jsonl` (`mkdir -p ~/.konoha` first):

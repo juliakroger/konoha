@@ -78,7 +78,7 @@ The seven specialists are real subagents in `agents/*.md`, dispatched via the `A
 | `sakura` | Enforcer | opus | Verification gauntlet (`pnpm check` + tests) + convention rules |
 | `anbu` | Red-team | opus | Adversarial security + edge-case + failure-path review (full-tier council only) |
 | `kurenai` | Illusion-dispel | opus | Genjutsu release (Kai) — AI-output review: hallucinated symbols, invented compatibility, prompt leakage, narration, fabricated tests; every finding carries its dispel proof |
-| `naruto` | Shipwright | sonnet | Commit, push, open PRs, post comments/replies |
+| `naruto` | Shipwright | sonnet | Commit, push, open PRs, edit PR bodies through the image guard, post comments/replies |
 | `gaara` | Architect & Counselor | **Codex CLI** | The decision maker (0.3.0): authors `plan.md`, rules on contested findings (`architect-codex.sh`), and closes reviews (`gaara-codex.sh`) — mandatory, never falls back to Claude |
 
 *(Cut vs thk: no Budget / Master of Coin — Kakashi watches scope himself.)*
@@ -146,14 +146,16 @@ ruling; a design fork on `trivial` upgrades to `standard`) → `sakura` verify (
 `.konoha/critical-paths`)** — declines need an `arbitrate` ruling → **delta close** (Gaara alone
 on the fix diff via `--base` snapshot) → `shikamaru` drafts the PR body (links the issue with
 `Closes #<n>`) → **one confirm** (states both dials) → `naruto` opens the Draft PR (base
-`staging`) → metrics line appended to `~/.konoha/metrics.jsonl`. AI credit: **No** (your own PR).
+`staging`; an existing PR is updated through `edit-pr` → `pr-body.sh`, images kept verbatim) →
+metrics line appended to `~/.konoha/metrics.jsonl`. AI credit: **No** (your own PR).
 
 ### `/debrief <pr-url>` — resolve the reviews on your PR
 Two inputs, in order: (1) the **PR URL** → pull comments via `gh` (the AI review bot first, then
 teammates); (2) then the skill **asks** if there's a **Slack** review to paste (optional). `shikamaru`
 maps the feedback to the task, Kakashi triages (accept / defer / decline-candidate) and fixes —
 declines need a `GRANTED` ruling from the Codex architect — `sakura` verifies, `naruto` commits +
-resolves fixed threads. AI credit: **No** (your own PR).
+resolves fixed threads, and edits a stale body line through `edit-pr` (images kept verbatim).
+AI credit: **No** (your own PR).
 
 ### `/exam <pr-url>` — review a colleague's PR
 Runs **`_council-review` (comment adapter)** on the PR, Kakashi consolidates the findings into **one**
@@ -206,6 +208,7 @@ konoha/
 ├── agents/{itachi,shikamaru,sakura,anbu,kurenai,naruto,gaara}.md
 ├── scripts/gaara-codex.sh      ← Codex adapter for the counselor (review close)
 ├── scripts/architect-codex.sh  ← Codex adapter for the decision maker (plan + arbitrate)
+├── scripts/pr-body.sh          ← image guard: the only way a PR body is edited (check + edit)
 └── skills/
     ├── scroll/SKILL.md          ← create issue
     ├── mission/SKILL.md         ← ticket → Draft PR
@@ -257,4 +260,10 @@ The themed skills evolve logic you already have; your current skills stay untouc
 - **Phase 3.6 (0.5.0, shipped)** — two dials (difficulty via `assess`, risk computed vs
   `.konoha/critical-paths`; `lite` drops ANBU only), ANBU failure-path lens, delta close
   (`gaara-codex.sh --base` on the fix diff), stale "Shikamaru plans" description fixed.
+- **Phase 3.7 (0.6.0 + 0.7.0, shipped)** — `/exam` verifies every finding against the merge base
+  and classifies it by provenance; the review opens on the first finding (no preamble, no clean
+  list); `/exam` gets its own worktree step; `/mission` is capped at two planned prompts.
+- **Phase 3.8 (0.8.0)** — PR images belong to the user: `scripts/pr-body.sh` guards every PR body
+  edit (`naruto` `edit-pr`, and `check` before `open-pr`) — the live body is the reference, every
+  image reference is carried verbatim in its slot, none is added, a removed one is never restored.
 - **Phase 4 (optional)** — profiles.json, local resume.

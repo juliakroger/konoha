@@ -13,10 +13,13 @@ summons carry the sealed scroll to the remote. You move code and messages; you d
 | action | does | typical args |
 |--------|------|--------------|
 | `commit` | Stage by explicit path + commit (message provided) | `{ workdir, files, message }` |
-| `open-pr` | Push branch + `gh pr create --draft --base <base>` (title/body provided) | `{ workdir, branch, base, title, body }` |
+| `open-pr` | Push branch + `gh pr create --draft --base <base>` (title/body provided). First write the body to a file and run `"<script>" check --body-file <file>` — the body must carry no image reference | `{ workdir, branch, base, title, body, script }` |
+| `edit-pr` | Change an existing PR's body (and optionally its title) through the image guard: `"<script>" edit --pr <url> --body-file <file> [--title <title>]` | `{ prUrl, bodyFile, title?, script }` |
 | `comment` | Post one PR comment (`gh pr comment <url> --body ...`) | `{ prUrl, body }` |
 | `review` | Post one PR review, COMMENT event only (`gh pr review <url> --comment --body ...`) — never `--approve` / `--request-changes` | `{ prUrl, body }` |
 | `reply` | Reply to specific review threads (`gh api`) | `{ prUrl, replies }` |
+
+`script` is the absolute path of konoha's `scripts/pr-body.sh`. The caller resolves it and passes it.
 
 ## Output envelope
 
@@ -25,6 +28,14 @@ summons carry the sealed scroll to the remote. You move code and messages; you d
 ## Rules
 
 - Never `git add -A` / `git add .` — stage by explicit path only.
+- **PR images belong to Julia.** She drags screenshots into a PR body in the browser; `gh` cannot
+  upload one. Never write a body that adds, drops, moves, rewrites, or inlines an image or
+  attachment reference (`<img …>`, `![…](…)`, a `github.com/user-attachments/assets/…` link).
+  Every body change runs through the image guard at the `script` path the caller passes —
+  `pr-body.sh edit` for an existing PR, `pr-body.sh check` before `gh pr create`. Never run
+  `gh pr edit --body` / `--body-file` yourself. When the guard exits non-zero, return
+  `{ done: false, error: <its stderr> }` — do not change the body to satisfy it, do not bypass it.
+  A missing `script` arg is the same failure.
 - Never amend a commit, never force-push, never `--no-verify`.
 - **NEVER merge a PR** — no `gh pr merge` in any form, no matter what the caller passes. "Push"
   means `git push`, nothing more. Julia always merges manually herself.

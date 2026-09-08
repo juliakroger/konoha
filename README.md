@@ -27,12 +27,12 @@ in **0.3** the roles inverted — **Codex decides, Claude executes**.
 | **Sakura** | Enforcer | Verification gauntlet (`pnpm check` + tests = "vitals green") + convention rules | Claude Opus | Claude Opus *(unchanged)* |
 | **ANBU** | Red-team | Covert adversarial review — security + edge cases + failure paths (timeouts, retries, rollback, data loss) | Claude Opus | Claude Opus *(unchanged)* |
 | **Kurenai** | Illusion-dispel | Genjutsu release (*Kai*) — AI-output review: hallucinated APIs, invented compatibility, prompt leakage, narration, fabricated tests | — | Claude Opus *(joined in 0.4)* |
-| **Naruto** | Shipwright | Kage Bunshin + toad summons — commit, push, open PRs, post comments/replies | Claude Sonnet | Claude Sonnet *(unchanged)* |
+| **Naruto** | Shipwright | Kage Bunshin + toad summons — commit, push, open PRs, edit PR bodies (image guard), post comments/replies | Claude Sonnet | Claude Sonnet *(unchanged)* |
 | **Gaara** | Architect & Counselor | Kazekage of Suna — a different village = a different model | Codex CLI (newest GPT) — review closer only | Codex CLI (newest GPT) — **the decision maker**: authors `plan.md`, rules on contested findings, closes reviews |
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Six rules baked in
+## Seven rules baked in
 
 1. **The council-review module is shared** between `/mission` (fixes findings before shipping) and
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
@@ -52,6 +52,10 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
    `assess`) scales the planning ceremony, risk (computed from the diff against the repo's
    `.konoha/critical-paths`, never judged) scales the council. Verify, Kurenai, the Gaara closer,
    the delta close, the single ship confirm, and decline-needs-GRANTED never scale down.
+7. **PR images belong to you.** You drag screenshots into a PR body in the browser; `gh` cannot
+   upload one. Every AI edit of a PR body (`/mission` re-gate, `/debrief`) runs through
+   `scripts/pr-body.sh`, which keeps every image reference the live body has — verbatim, in its
+   slot — never adds one, and never restores one you removed or undoes one you changed.
 
 ## Install (local)
 
