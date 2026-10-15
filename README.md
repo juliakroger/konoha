@@ -10,7 +10,7 @@ skills summon.
 | Command | Does | Reviews with you? |
 |---|---|---|
 | **`/scroll`** | Draft a lean GitHub issue from a description you give (research-backed, confirm each step) | — |
-| **`/mission <issue>`** | Take a GitHub issue end-to-end to a **Draft PR** (links it with `Closes #<n>`) | yes — council reviews the diff and fixes before shipping |
+| **`/mission <issue>`** | Take a GitHub or Linear issue end-to-end to a **Draft PR** (links it with `Closes #<n>` / `Closes <KEY>-<n>`) | yes — council reviews the diff and fixes before shipping |
 | **`/debrief <pr-url>`** | Resolve the reviews on **your** PR — the AI review bot + teammates + (optionally) a pasted Slack review | — |
 | **`/exam <pr-url>`** | Review a **colleague's** PR and post **one** comment in your name | yes — council inspects, you post the summary |
 
@@ -22,7 +22,7 @@ in **0.3** the roles inverted — **Codex decides, Claude executes**.
 | Ninja | Role | Job | AI in 0.2 | AI in 0.3+ |
 |---|---|---|---|---|
 | **Kakashi** | Orchestrator | Runs each mission from the main loop; routes and executes *(a persona in the skills, not a dispatched agent — like thk's Hand)* | your session model (Claude) — decided AND executed | your session model (Claude) — executes the architect's plan; contested calls go to Codex |
-| **Itachi** | Capture | Sharingan — reads & remembers everything: issue + comments + linked PRs + code + backend repos | Claude Opus | Claude Opus *(unchanged)* |
+| **Itachi** | Capture | Sharingan — reads & remembers everything: issue + comments (GitHub via `gh`; a Linear ticket arrives as the file Kakashi captured over the MCP) + linked PRs + code + backend repos | Claude Opus | Claude Opus *(unchanged)* |
 | **Shikamaru** | Scholar | Root-cause, git history, plan work, PR write-up, correctness review | Claude Opus — **authored** the plan | Claude Opus — **reviews** the architect's plan against the codebase; no longer authors it |
 | **Sakura** | Enforcer | Verification gauntlet (`pnpm check` + tests = "vitals green") + convention rules | Claude Opus | Claude Opus *(unchanged)* |
 | **ANBU** | Red-team | Covert adversarial review — security + edge cases + failure paths (timeouts, retries, rollback, data loss) | Claude Opus | Claude Opus *(unchanged)* |
@@ -32,7 +32,7 @@ in **0.3** the roles inverted — **Codex decides, Claude executes**.
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Seven rules baked in
+## Eight rules baked in
 
 1. **The council-review module is shared** between `/mission` (fixes findings before shipping) and
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
@@ -56,6 +56,11 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
    upload one. Every AI edit of a PR body (`/mission` re-gate, `/debrief`) runs through
    `scripts/pr-body.sh`, which keeps every image reference the live body has — verbatim, in its
    slot — never adds one, and never restores one you removed or undoes one you changed.
+8. **A Linear ticket is read over the MCP, in the main loop.** `/mission` takes a GitHub issue or
+   a Linear issue. Kakashi fetches a Linear ticket (description, comments, relations, images)
+   through the `linear-server` MCP and hands Itachi a ticket file; when the MCP is down, konoha
+   stops and asks. The branch is the lowercased identifier (`fe-148`) and the PR body ends with
+   `Closes <KEY>-<n> — <url>`, the line Linear's GitHub integration links.
 
 ## Install (local)
 

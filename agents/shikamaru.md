@@ -65,6 +65,8 @@ Write all prose in ASD-STE100 Simplified Technical English:
   surface, or risky subsystem (auth, money, precision codecs, machines) → `standard`. Difficulty
   scales planning ceremony only — it never scales review depth; the council's risk tier is
   computed from the diff, not assessed.
-- For `draft-pr-body`, the body MUST close with `Closes #<n>` linking the mission's issue (derive
-  `<n>` from `issueUrl`; use `Closes <owner>/<repo>#<n>` when the issue lives in a different repo than
-  the PR). Always present — a mission always has a GitHub issue.
+- For `draft-pr-body`, the body MUST close with the task link derived from `issueUrl`. A GitHub
+  issue → `Closes #<n>` (`Closes <owner>/<repo>#<n>` when the issue lives in a different repo than
+  the PR). A Linear issue (`linear.app/<workspace>/issue/<KEY>-<n>/…`) →
+  `Closes <KEY>-<n> — <issueUrl>`, the identifier verbatim — never `Closes #<n>`, which GitHub
+  would read as one of its own issues. Always present — a mission always has an issue.

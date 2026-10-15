@@ -73,7 +73,7 @@ The seven specialists are real subagents in `agents/*.md`, dispatched via the `A
 
 | Agent | Office | Model | Job |
 |---|---|---|---|
-| `itachi` | Capture | opus | Sharingan — reads issue + comments + linked PRs + code + backend repos |
+| `itachi` | Capture | opus | Sharingan — reads issue + comments (GitHub via `gh`; Linear via the ticket file Kakashi captured over the MCP) + linked PRs + code + backend repos |
 | `shikamaru` | Scholar | opus | Plan review (architect's plan vs the real codebase), root-cause, correctness review, PR write-up, difficulty verdict (`assess`) |
 | `sakura` | Enforcer | opus | Verification gauntlet (`pnpm check` + tests) + convention rules |
 | `anbu` | Red-team | opus | Adversarial security + edge-case + failure-path review (full-tier council only) |
@@ -136,17 +136,21 @@ A full `profiles.json` (swap any office's model without editing files) is a late
 `itachi` researches current behavior (code + backend repos) and `shikamaru` structures it; Kakashi
 drafts a **lean** issue (Summary / Current / Desired only) and confirms at each gate. AI credit: n/a.
 
-### `/mission <issue>` — take a GitHub issue to a Draft PR
-`itachi` capture → gate (already-fixed / needs-info / go) → `shikamaru` **assess** (difficulty
-dial; `trivial` skips the two plan steps) → **Codex architect plans** (`architect-codex.sh plan` →
-`plan.md`; `standard` only) → `shikamaru` reviews the plan (one revision round) → **Kakashi
+### `/mission <issue>` — take a GitHub or Linear issue to a Draft PR
+(Linear: Kakashi reads the ticket, comments, relations and images over the `linear-server` MCP
+first — Itachi has no Linear tools — and passes a ticket file; the MCP down = stop and ask) →
+`itachi` capture → gate (already-fixed / Linear done, canceled or `BLOCKED` / needs-info / go) →
+`shikamaru` **assess** (difficulty dial; `trivial` skips the two plan steps) → **Codex architect
+plans** (`architect-codex.sh plan` → `plan.md`; `standard` only) → `shikamaru` reviews the plan
+(one revision round) → **Kakashi
 executes** (single-agent, per `CLAUDE.md`, deviations logged; design deviations need a `GRANTED`
 ruling; a design fork on `trivial` upgrades to `standard`) → `sakura` verify (fix-retry) →
 **`_council-review` (fix adapter, plan passed to the closer; risk tier computed vs
 `.konoha/critical-paths`)** — declines need an `arbitrate` ruling → **delta close** (Gaara alone
 on the fix diff via `--base` snapshot) → `shikamaru` drafts the PR body (links the issue with
-`Closes #<n>`) → **one confirm** (states both dials) → `naruto` opens the Draft PR (base
-`staging`; an existing PR is updated through `edit-pr` → `pr-body.sh`, images kept verbatim) →
+`Closes #<n>`, or `Closes <KEY>-<n> — <url>` for Linear; the branch is `issue-<n>` or the lowercased
+Linear identifier) → **one confirm** (states both dials) → `naruto` opens the Draft PR (base
+`development`; an existing PR is updated through `edit-pr` → `pr-body.sh`, images kept verbatim) →
 metrics line appended to `~/.konoha/metrics.jsonl`. AI credit: **No** (your own PR).
 
 ### `/debrief <pr-url>` — resolve the reviews on your PR
@@ -266,4 +270,9 @@ The themed skills evolve logic you already have; your current skills stay untouc
 - **Phase 3.8 (0.8.0)** — PR images belong to the user: `scripts/pr-body.sh` guards every PR body
   edit (`naruto` `edit-pr`, and `check` before `open-pr`) — the live body is the reference, every
   image reference is carried verbatim in its slot, none is added, a removed one is never restored.
+- **Phase 3.9 (0.9.0)** — `/mission` takes a Linear issue link or identifier as well: Kakashi
+  reads the ticket, its comments, relations and images over the `linear-server` MCP in the main
+  loop (fail closed when it is not connected) and hands Itachi a ticket file; the branch is the
+  lowercased identifier; the PR body ends with `Closes <KEY>-<n> — <url>`. The worktree and the
+  Draft PR base move from `staging` to `development`.
 - **Phase 4 (optional)** — profiles.json, local resume.
