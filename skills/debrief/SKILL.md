@@ -33,9 +33,9 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
    Julia always merges manually herself. The debrief ends at pushed fixes + resolved threads.
 8. **Declining feedback is not your call (0.3.0).** Accepting or deferring a finding needs no
    permission. To DECLINE one — the AI review bot's, a teammate's, or a Slack reviewer's — you need
-   a GRANTED ruling from the Codex architect: batch all candidate declines into one file (id,
+   a GRANTED ruling from the Codex arbiter: batch all candidate declines into one file (id,
    finding, your objection, evidence) and run
-   `"${CLAUDE_PLUGIN_ROOT}/scripts/architect-codex.sh" arbitrate --contested <file> --workdir <repo>`.
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/arbiter-codex.sh" --contested <file> --workdir <repo>`.
    `DENIED` → treat as accepted and fix it. If the script fails, ask the user to retry or stop; on
    stop, the contested items are NEVER silently declined — list them in the final report as
    "needs your call". The frontend-review bot runs on Codex, so this also ends the pattern of
@@ -79,8 +79,8 @@ Technical English:
    If they paste text, fold those findings into the same triage; if they skip, continue.
 3. **Understand.** Dispatch `konoha:shikamaru` to map each piece of feedback against the PR's task.
 4. **Triage.** Kakashi sorts each finding: **accept / defer / decline-candidate**, with a one-line
-   reason. Accepts and defers are yours. Decline-candidates go to the architect in ONE batched
-   `arbitrate` call (hard rule 8); a `DENIED` ruling moves the item back to accept.
+   reason. Accepts and defers are yours. Decline-candidates go to the Codex arbiter in ONE batched
+   `arbiter-codex.sh` call (hard rule 8); a `DENIED` ruling moves the item back to accept.
 5. **Fix.** Implement the accepted items yourself; dispatch `konoha:sakura` `action: verify`.
 6. **Confirm YubiKey, then ship.** Committing and pushing each pop her **YubiKey PIN dialog + touch**
    (once per commit to sign, once to push) — tell her so and get a quick OK that she's at the key

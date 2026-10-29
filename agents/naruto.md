@@ -18,12 +18,13 @@ summons carry the sealed scroll to the remote. You move code and messages; you d
 | `comment` | Post one PR comment (`gh pr comment <url> --body ...`) | `{ prUrl, body }` |
 | `review` | Post one PR review, COMMENT event only (`gh pr review <url> --comment --body ...`) — never `--approve` / `--request-changes` | `{ prUrl, body }` |
 | `reply` | Reply to specific review threads (`gh api`) | `{ prUrl, replies }` |
+| `rerun-check` | Start the test-requirements check on a PR after a body edit: `gh workflow run test-requirements-review-caller.yml -R <owner>/<repo> -f pr_number=<n>` (the workflow is read from the repo's default branch), then poll `gh run list -R <owner>/<repo> --workflow test-requirements-review-caller.yml --limit 1 --json databaseId,status,conclusion,url` until it completes (cap 15 min) | `{ prUrl }` |
 
 `script` is the absolute path of konoha's `scripts/pr-body.sh`. The caller resolves it and passes it.
 
 ## Output envelope
 
-`{ done: boolean, prUrl?: string, commitSha?: string, error?: string }`
+`{ done: boolean, prUrl?: string, commitSha?: string, runUrl?: string, conclusion?: string, error?: string }`
 
 ## Rules
 
@@ -36,6 +37,10 @@ summons carry the sealed scroll to the remote. You move code and messages; you d
   `gh pr edit --body` / `--body-file` yourself. When the guard exits non-zero, return
   `{ done: false, error: <its stderr> }` — do not change the body to satisfy it, do not bypass it.
   A missing `script` arg is the same failure.
+- **The PR creation workflow footer is not attribution.** A body the caller passes ends with
+  `---`, a `<sub>Opened with the PR creation workflow …</sub>` line and a
+  `<!-- pr-creation-workflow v1 start=… end=… -->` marker. Post it verbatim and keep the marker
+  last; never strip it as an AI footer, never add one yourself.
 - Never amend a commit, never force-push, never `--no-verify`.
 - **NEVER merge a PR** — no `gh pr merge` in any form, no matter what the caller passes. "Push"
   means `git push`, nothing more. Julia always merges manually herself.

@@ -9,23 +9,26 @@
 #     --workdir   repo/worktree to run in (defaults to $PWD)
 #     --base      diff against this ref instead of HEAD (the /mission delta close
 #                 after round-1 fixes; untracked files still appear in full)
-#   env GAARA_MODEL=<id>        force a model; otherwise the codex config's `model` wins
-#                               (see the resolution block below — keep Gaara on the newest)
-#   env GAARA_REASONING=<tier>  model_reasoning_effort (default medium — high roughly
-#                               doubled wall time on a mid-size PR for marginal gain)
+#   env GAARA_MODEL=<id>        force a model; otherwise the newest `gpt-*-sol` the codex CLI
+#                               lists wins, then the codex config's `model` (codex-common.sh)
+#   env GAARA_REASONING=<tier>  model_reasoning_effort; otherwise the codex config's
+#                               `model_reasoning_effort` wins (the user's dial), then xhigh
 #   env GAARA_FULL_DIFF=1       embed the whole diff; skip the tests/docs/lockfile trim
 #     --pr        review a PR's diff (gh pr diff <url>); omit to review the
 #                 uncommitted diff in --workdir (the /mission case)
 #     --prior     a file of findings the Claude council already produced, so
 #                 Gaara targets the gaps instead of repeating them
-#     --plan      the architect's plan.md (/mission only) — the closer also
-#                 verifies the diff implements it and flags unapproved
-#                 design deviations
+#     --plan      the mission's plan.md (/mission only; Shikamaru writes it) —
+#                 the closer also verifies the diff implements it and flags
+#                 design deviations the plan does not record
 #
-# Exit codes: 3 = codex not installed, 4 = empty diff (nothing to review).
-# Both HALT the review — the caller asks the user to retry or stop, and must
-# never substitute the Claude gaara agent for a failed run here.
+# Exit codes: 3 = codex not installed, 4 = empty diff (nothing to review),
+# 5 = codex returned no final message; any other non-zero code is codex's own.
+# All of them HALT the review — the caller asks the user to retry or stop, and
+# must never substitute the Claude gaara agent for a failed run here. Every run
+# is appended to ~/.konoha/codex-runs.jsonl (model, reasoning, exit, tokens).
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 WORKDIR="$PWD"; PR=""; BASE="HEAD"; PRIOR=""; PLAN=""
 while [ $# -gt 0 ]; do
@@ -80,18 +83,14 @@ PLAN_TEXT="<none>"
 [ -n "$PLAN" ] && [ -f "$PLAN" ] && PLAN_TEXT="$(cat "$PLAN")"
 
 # Gaara must always run the NEWEST Codex model. A hard-coded pin rots silently —
-# this sat on gpt-5.5 long after the CLI default moved on — so read the model from
-# the codex config (kept current) and treat the pin only as a last resort.
-# Order: $GAARA_MODEL → `model` in codex config → fallback pin.
-CODEX_CFG="${CODEX_HOME:-$HOME/.codex}/config.toml"
-MODEL="${GAARA_MODEL:-}"
-if [ -z "$MODEL" ] && [ -f "$CODEX_CFG" ]; then
-  MODEL="$(grep -m1 -E '^[[:space:]]*model[[:space:]]*=' "$CODEX_CFG" \
-    | sed -E 's/.*=[[:space:]]*"?([^"#]*[^"# ])"?.*/\1/' || true)"
-fi
-[ -n "$MODEL" ] || MODEL="gpt-5.6-sol"
-REASONING="${GAARA_REASONING:-medium}"
-echo "gaara: codex model=${MODEL} reasoning=${REASONING}" >&2
+# this sat on gpt-5.5, then on the config's gpt-5.6-sol, after the CLI had moved
+# on — so codex-common.sh reads the newest `gpt-*-sol` from the CLI's own models
+# cache, then the codex config, and treats the pin only as a last resort. The
+# reasoning effort is the user's config dial (max as of 2026-10-20), not a lower
+# default of this script's own.
+. "$SCRIPT_DIR/codex-common.sh"
+MODEL="$(codex_resolve_model "${GAARA_MODEL:-}")"
+REASONING="$(codex_resolve_effort "${GAARA_REASONING:-}" xhigh)"
 
 PROMPT="You are the outside reviewer — a different model than the team that wrote and
 first reviewed this change. One pass, holistic: correctness, security, and design
@@ -114,8 +113,8 @@ Rules:
 Council findings (do not repeat):
 ${PRIOR_TEXT}
 
-Approved plan (when present, also verify the diff implements it; flag any
-design deviation that carries no GRANTED ruling in the deviation log):
+Mission plan (when present, also verify the diff implements it; flag any
+design deviation that the plan's Revisions section does not record):
 ${PLAN_TEXT}
 
 Changed files omitted from the diff for brevity (tests/docs/lockfiles — read them
@@ -125,10 +124,8 @@ ${OMITTED:-<none>}
 DIFF UNDER REVIEW:
 ${DIFF}"
 
-# --sandbox read-only: Gaara reviews; it must never modify files during a review.
-# The prompt (which embeds the full diff) goes via stdin ('-') so a large diff
-# can't blow the ARG_MAX limit — PR diffs run to thousands of lines.
-printf '%s' "$PROMPT" | codex exec --sandbox read-only \
-  -m "$MODEL" \
-  -c model_reasoning_effort="$REASONING" \
-  -
+# --sandbox read-only (inside codex_run): Gaara reviews; it must never modify
+# files during a review. The prompt (which embeds the full diff) goes via stdin
+# so a large diff can't blow the ARG_MAX limit — PR diffs run to thousands of
+# lines. codex_run prints the verdict to stdout and logs the run.
+printf '%s' "$PROMPT" | codex_run gaara review "$MODEL" "$REASONING"

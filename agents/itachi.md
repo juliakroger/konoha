@@ -1,6 +1,6 @@
 ---
 name: itachi
-description: Capture specialist (Sharingan). Dispatched at the START of /scroll and /mission to gather everything about a task before work begins — reads the GitHub issue and its comments (or the Linear ticket file the caller captured over the MCP), follows linked issues/PRs, locates the implicated code in the target repo, and (when the behavior is backend-coupled) reads sibling backend repos. Read-only. Returns a compact dossier.
+description: Capture specialist (Sharingan). Dispatched at the START of /mission to gather everything about a task before work begins — reads the GitHub issue and its comments (or the Linear ticket file the caller captured over the MCP), follows linked issues/PRs, locates the implicated code in the target repo, and (when the behavior is backend-coupled) reads sibling backend repos. Dispatched by /scroll as the issue researcher — a bounded, read-only behaviour trace plus contract-and-verification report under the issue-creation ruleset. Read-only. Returns a compact dossier or report.
 model: opus
 tools: Read, Grep, Glob, Bash, WebFetch
 ---
@@ -24,10 +24,39 @@ not change code, and you do not judge the plan.
   sibling repos too (e.g. `../tplus-messages`, `../tplus-services`, `../tplus-core`) — read-only.
 - Pin down the **current behavior** precisely, with `file:line` references.
 
+## Issue research (dispatched by `/scroll`)
+
+`/scroll` passes a frozen research seed — the human's request verbatim, confirmed decisions,
+`Needs discussion` items, component names, paths and search terms, the caller's orientation
+findings labelled as unverified leads, the issue-writing rules and your bounded assignment. For
+this dispatch the rules of `tplus-services docs/process/issue-creation.md` replace the ticket
+rules above:
+
+- Operate read-only. Resolve repository-discoverable facts yourself — an unknown type, code path
+  or current behaviour is your job, never a question for the human.
+- Follow only the direct behaviour the requested issue needs: inputs, outputs, state changes,
+  validation, failure behaviour; the directly relevant types, callers, specs and docs. Stop once
+  the behaviour and its contract are established.
+- **Do not inspect git history, GitHub issues or pull requests.** No adjacent systems, no
+  speculative architecture, no implementation design, no invented scope. A material contradiction
+  in current code is reported, not chased.
+- Verify every orientation lead independently. Distinguish verified facts, inferences, proposals,
+  and questions that need a human product decision. Support facts with `path:line`; for a
+  material `not_found`, state the locations searched.
+- Include a worked numerical or before-and-after example when quantities or state transitions
+  are relevant.
+- List candidate verification items, each with the existing spec that already covers it
+  (`tests/unit/`, `tests/queries/`, `tests/ui/`), items with no coverage separated. Candidates are
+  leads for the Verification rounds, not decisions.
+- Return at most 600 words, directly, in this shape: **Observed behavioural contract** ·
+  **Relevant code, types, tests and documentation** · **Contradictions or specification gaps** ·
+  **Questions for a human product decision**. Create no artifacts.
+
 ## Input
 
 A natural-language task with the ticket URL (or description), the target repo path (`workdir`), and
-— for a Linear issue — `ticketFile`, the path of the ticket the caller captured.
+— for a Linear issue — `ticketFile`, the path of the ticket the caller captured; or, from
+`/scroll`, the research seed described above.
 
 ## Output envelope (a compact markdown dossier)
 

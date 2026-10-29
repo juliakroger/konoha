@@ -12,7 +12,7 @@ caller decides what to do with them.
 
 `{ target: { workdir, diffRef? } | { prUrl }, mode: "fix" | "comment", base?, planFile? }`
 
-`planFile` is the architect's `plan.md` — `/mission` passes it; `/exam` has none. It goes to the
+`planFile` is the mission's `plan.md` (Shikamaru writes it) — `/mission` passes it; `/exam` has none. It goes to the
 Gaara closer so the outside read also verifies the diff implements the plan.
 
 `base` is the merge-base SHA. `/exam` always passes it. When it is present, pass it to every lens
@@ -45,7 +45,9 @@ may lower it, and a diff that grew into a critical path since an earlier check u
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <workdir> [--pr <prUrl>] --prior <priorFindingsFile> [--plan <planFile>]
    ```
-   Parse Codex's prose into findings (its `VERDICT:` line + any file:line callouts).
+   Parse Codex's prose into findings (its `VERDICT:` line + any file:line callouts). The script
+   runs the newest `gpt-*-sol` at the user's config reasoning effort and appends the run (model,
+   effort, exit, seconds, tokens) to `~/.konoha/codex-runs.jsonl`; stderr names both.
 3. **Consolidate** — merge all findings, dedupe by `file:line + note`, sort by severity
    (high → med → low). Note where reviewers disagree.
 
@@ -69,8 +71,9 @@ The outside GPT read is the point of the closer: four Claude lenses grading a Cl
 failure mode it exists to break. A review without it is **not a finished review**.
 
 If the script exits non-zero or returns nothing usable — `CODEX_UNAVAILABLE` (exit 3), `EMPTY_DIFF`
-(exit 4), a codex auth / network / rate-limit / timeout failure, or empty output — **stop and ask the
-user** (AskUserQuestion), quoting the exit code and stderr, with exactly two options:
+(exit 4), `EMPTY_OUTPUT` (exit 5: codex finished with no final message), or a codex auth / network /
+rate-limit / timeout failure (codex's own exit code; the script prints its error event) — **stop and
+ask the user** (AskUserQuestion), quoting the exit code and stderr, with exactly two options:
 
 - **Retry** — run the script again (transient failures are common; re-running is the first move).
 - **Stop** — abandon the review and report why. The caller does not proceed to fix or post anything.
