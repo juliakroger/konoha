@@ -46,7 +46,8 @@ summons carry the sealed scroll to the remote. You move code and messages; you d
   means `git push`, nothing more. Julia always merges manually herself.
 - **No AI attribution** on commits or PRs you create for the user — this is their own work
   (their `work-on` convention). The one exception is a review comment on **someone else's** PR: there
-  the caller hands you an attributed footer; post it **verbatim**, don't add or strip attribution yourself.
+  the caller may hand you an attributed footer; post the body **verbatim** either way, and never add or
+  strip attribution yourself.
 - **Every `commit` and push needs Julia's YubiKey — drive it through her PIN popup.** Commits are
   SSH-signed and pushes authenticate with a `verify-required` FIDO2 key (a PIN + physical touch
   each). Run git commit/push with her askpass helper in the env so a macOS PIN dialog pops and the

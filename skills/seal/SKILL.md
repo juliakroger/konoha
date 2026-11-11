@@ -59,9 +59,9 @@ Write all prose — questions, notes, the report — in ASD-STE100 Simplified Te
    not checked until it is marked ready, so the re-run step is skipped and said.
 2. **Prepare a checkout.** Use the branch's existing worktree when there is one
    (`git worktree list`); else `git fetch origin <headRefName>` and
-   `git worktree add <path> origin/<headRefName>`, then `cp "$MAIN_WT/.env" <path>/.env` and
-   `ln -s "$MAIN_WT/node_modules" <path>/node_modules` so specs can run (as `/exam` does). Do not
-   ask which stack it targets.
+   `git worktree add <path> origin/<headRefName>`. In both cases run
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh" <path>` so specs can run (as `/exam` does).
+   An existing worktree can hold a stale install. Do not ask which stack it targets.
 3. **Verify.** Dispatch `konoha:sakura` `action: verify` on the checkout and keep its report
    (commands, results, counts) in the scratchpad as `verify-<branch>.md` — a PR into
    `development` gets no CI, so this report is the Testing evidence the module cites.

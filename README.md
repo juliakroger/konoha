@@ -12,7 +12,7 @@ skills summon.
 | **`/scroll`** | Draft a **Linear** issue in team FE from a description you give — the org's issue-creation workflow: interview (≥5 rounds), background research, Summary / Context / Scope / Verification, a fresh-context review, one approval | — |
 | **`/mission <issue>`** | Take a GitHub or Linear issue end-to-end to a **Draft PR** (links it with `Closes <owner>/<repo>#<n>` / `Closes <KEY>-<n>`); ends with the **PR creation workflow** — you write the description, Kakashi interviews you and seals it with the fingerprint | yes — council reviews the diff and fixes before shipping |
 | **`/debrief <pr-url>`** | Resolve the reviews on **your** PR — the AI review bot + teammates + (optionally) a pasted Slack review | — |
-| **`/exam <pr-url>`** | Review a **colleague's** PR and post **one** comment in your name | yes — council inspects, you post the summary |
+| **`/exam <pr-url or stack-url>`** | Review a **colleague's** PR and post **one** comment in your name. A **stack** URL reviews each PR plus the whole stack and posts one review per open PR, with no footer | yes — council inspects, you approve what gets posted |
 | **`/seal <pr-url>`** | Run the PR creation workflow on an existing PR of **yours** — the live body is your draft; interview, re-section, fingerprint, edit through the image guard, re-run the check | — |
 
 ## The cast (subagents)
@@ -26,7 +26,7 @@ to Claude — **Claude plans and executes**; Codex closes the review and rules o
 | **Kakashi** | Orchestrator | Runs each mission from the main loop; routes and executes *(a persona in the skills, not a dispatched agent — like thk's Hand)* | your session model (Claude) — decided AND executed | your session model (Claude) — executed the architect's plan; contested calls went to Codex | your session model (Claude) — executes Shikamaru's plan; a design change goes back to Shikamaru, a decline to Codex |
 | **Itachi** | Capture | Sharingan — reads & remembers everything: issue + comments (GitHub via `gh`; a Linear ticket arrives as the file Kakashi captured over the MCP) + linked PRs + code + backend repos | Claude Opus | Claude Opus *(unchanged)* | Claude Opus *(unchanged)* |
 | **Shikamaru** | Scholar | Root-cause, git history, plan, issue-draft review, correctness review | Claude Opus — **authored** the plan | Claude Opus — **reviewed** the architect's plan against the codebase | Claude Opus — **authors** the plan again, and revises it on a design deviation |
-| **Sakura** | Enforcer | Verification gauntlet (`pnpm check` + tests = "vitals green") + convention rules | Claude Opus | Claude Opus *(unchanged)* | Claude Opus *(unchanged)* |
+| **Sakura** | Enforcer | Verification gauntlet (`bun run check` + tests = "vitals green") + convention rules | Claude Opus | Claude Opus *(unchanged)* | Claude Opus *(unchanged)* |
 | **ANBU** | Red-team | Covert adversarial review — security + edge cases + failure paths (timeouts, retries, rollback, data loss) | Claude Opus | Claude Opus *(unchanged)* | Claude Opus *(unchanged)* |
 | **Kurenai** | Illusion-dispel | Genjutsu release (*Kai*) — AI-output review: hallucinated APIs, invented compatibility, prompt leakage, narration, fabricated tests | — | Claude Opus *(joined in 0.4)* | Claude Opus *(unchanged)* |
 | **Naruto** | Shipwright | Kage Bunshin + toad summons — commit, push, open PRs, edit PR bodies (image guard), post comments/replies | Claude Sonnet | Claude Sonnet *(unchanged)* | Claude Sonnet *(unchanged)* |
@@ -40,7 +40,7 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
 2. **AI attribution flips by ownership.** Your own commits/PRs (`/mission`, `/debrief`) carry **no** AI
    attribution. A review comment on a **colleague's** PR (`/exam`) **does** — an explicit footer —
-   because there, transparency is the courteous thing.
+   because there, transparency is the courteous thing. Stack reviews have none: you chose that.
 3. **Claude NEVER merges a PR.** Across every skill and agent: no `gh pr merge`, under any phrasing —
    "push it" means `git push` only. The Hokage always merges manually, herself.
 4. **The squad talks ASD-STE100.** Every dossier, plan, finding, PR body, review, and issue is

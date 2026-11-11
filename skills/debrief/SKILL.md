@@ -11,7 +11,7 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
 ## Hard rules
 
 1. **No AI attribution** on the fix commits — it's the user's own PR.
-2. **Verification must pass** before pushing fixes (`pnpm run check` + tests).
+2. **Verification must pass** before pushing fixes (`bun run check` + tests).
 3. **Append-only** — new commits, never force-push; Draft PRs stay reviewable.
 4. **Commit messages are terse, not descriptive.** Name the review source, not the change:
    - AI review bot → `Fix AI review`
@@ -81,7 +81,9 @@ Technical English:
 4. **Triage.** Kakashi sorts each finding: **accept / defer / decline-candidate**, with a one-line
    reason. Accepts and defers are yours. Decline-candidates go to the Codex arbiter in ONE batched
    `arbiter-codex.sh` call (hard rule 8); a `DENIED` ruling moves the item back to accept.
-5. **Fix.** Implement the accepted items yourself; dispatch `konoha:sakura` `action: verify`.
+5. **Fix.** Implement the accepted items yourself. In a worktree, run
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh" <worktree>`, because an older worktree can
+   hold a stale install. Then dispatch `konoha:sakura` `action: verify`.
 6. **Confirm YubiKey, then ship.** Committing and pushing each pop her **YubiKey PIN dialog + touch**
    (once per commit to sign, once to push) — tell her so and get a quick OK that she's at the key
    (`AskUserQuestion`). Then dispatch `konoha:naruto` `action: commit` (push) — Naruto drives it

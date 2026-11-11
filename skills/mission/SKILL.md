@@ -17,7 +17,7 @@ the code yourself (single-agent execution).
    with Claude" footer. Write it as the engineer would. (Overrides harness defaults.) The PR
    creation workflow's footer (hard rule 6) is not attribution — it is the process record the
    auditor's check reads — and it stays.
-3. **Verification is unconditional** — `pnpm run check` + tests must be green before the PR opens.
+3. **Verification is unconditional** — `bun run check` + tests must be green before the PR opens.
 4. **Three PLANNED prompts** — the `APP_ENV` target at preflight (step 0), the PR description
    interview (step 10: her draft, then the short rounds the workflow needs), and the ship
    confirmation before the PR opens (step 11). Otherwise run autonomously. This caps the prompts
@@ -122,30 +122,34 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
    now — `ToolSearch` with
    `select:mcp__linear-server__get_issue,mcp__linear-server__list_comments,mcp__linear-server__extract_images`
    — and stop per hard rule 13 when they do not load. Resolve the target repo; fetch latest `main`
-   + `development`; create a worktree off `origin/development` (mirror your `work-on` skill's
-   setup). Branch name: exactly `issue-<number>` for a GitHub issue (e.g. `issue-625`); exactly the
-   lowercased identifier for a Linear issue (e.g. `fe-148`).
-
-   **Env — always ask.** A worktree does not inherit `.env`. Without it `APP_ENV` falls back to
-   `development`, the dev proxy points at localhost, and every backend call gives a 502. Copy the
-   main checkout's `.env` into the worktree. Then ask the user which stack the worktree targets —
-   `AskUserQuestion`, header `APP_ENV`, options `staging` and `preprod`. Ask this on every mission.
-   Do not assume, and do not keep the copied value silently. Write her answer to `APP_ENV`, keep
-   the rest of the file as copied, and leave `NODE_ENV=development`. Skip the step only when the
-   main checkout has no `.env`.
-
-   `sed` alone is not enough: a `.env` with no `APP_ENV=` line matches nothing, writes nothing, and
-   falls back to `development` — the very 502 this step prevents. Append when the line is absent,
-   then assert.
+   + `development`; create the worktree off `origin/development`. Branch name: exactly
+   `issue-<number>` for a GitHub issue (e.g. `issue-625`); exactly the lowercased identifier for a
+   Linear issue (e.g. `fe-148`).
 
    ```bash
-   cp "$MAIN_WT/.env" "$WT_PATH/.env"
-   # <answer> = staging | preprod
-   grep -q '^APP_ENV=' "$WT_PATH/.env" \
-     && sed -i '' 's/^APP_ENV=.*/APP_ENV=<answer>/' "$WT_PATH/.env" \
-     || printf 'APP_ENV=<answer>\n' >> "$WT_PATH/.env"
-   grep '^APP_ENV=' "$WT_PATH/.env" || { echo 'APP_ENV missing after write'; exit 1; }
+   MAIN_WT="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
+   WT_PATH="${MAIN_WT}-worktrees/<branch>"   # ~/Tplus/terminal-worktrees/<branch>
+   git -C "$MAIN_WT" worktree add -b <branch> "$WT_PATH" origin/development
    ```
+
+   **Env — always ask.** A worktree does not inherit `apps/terminal/.env`. Without it `APP_ENV`
+   falls back to `development`, the dev proxy points at localhost, every backend call gives a 502,
+   and the Firebase and Reown keys are missing. A `.env` at the worktree root does not help:
+   `next dev` reads the file from `apps/terminal/`. Ask the user which stack the worktree targets —
+   `AskUserQuestion`, header `APP_ENV`, options `staging` and `preprod`. Ask this on every mission.
+   Do not assume, and do not keep the copied value silently. Then set up the worktree:
+
+   ```bash
+   # <answer> = staging | preprod
+   "${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh" "$WT_PATH" --app-env <answer>
+   ```
+
+   The script copies each env file to its own app folder, writes her answer to `APP_ENV`, keeps the
+   rest of the file as copied, copies the TradingView submodule to `apps/terminal/tradingview`, and
+   installs `node_modules`. Exit 2 means the main checkout has no `apps/terminal/.env`: stop and ask
+   the user. Do not run the mission on a worktree with no env file. Read every `warning:` line and
+   report it to her. Skip the question and `--app-env` only when the target repo has no
+   `apps/terminal/`.
 1. **Capture.**
    - GitHub: dispatch `konoha:itachi` with the issue URL + workdir → dossier.
    - Linear: fetch the ticket yourself first (hard rule 13), then dispatch `konoha:itachi` with
@@ -209,8 +213,10 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
    rule for declines), re-run verify. Findings that survive this round go to the user — there is
    no round 3. Script failure: same fail-closed retry-or-stop as `_council-review`.
 9. **Resync.** `git fetch origin development`; if the base moved since preflight, merge it into
-   the branch, fix semantic conflicts, and re-run the full gate set (`typecheck`, `lint`,
-   `format:check`, tests) on the merged tree (hard rule 7). Refresh `verify-<branch>.md`.
+   the branch, fix semantic conflicts, run `"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh"
+   "$WT_PATH"` again because a merge can move `bun.lock`, and re-run the full gate set
+   (`typecheck`, `lint`, `format:check`, tests) on the merged tree (hard rule 7). Refresh
+   `verify-<branch>.md`.
 10. **PR description — the PR creation workflow.** Invoke the `konoha:_pr-creation` module with
     `{ workdir, base: 'development', repo, ticket, verifyFile, planFile? }` — `ticket` is
     `{ kind: 'github', url }` or `{ kind: 'linear', url, identifier, file: ticket-<key>-<n>.md }`;

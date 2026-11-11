@@ -76,7 +76,7 @@ The seven specialists are real subagents in `agents/*.md`, dispatched via the `A
 |---|---|---|---|
 | `itachi` | Capture | opus | Sharingan — reads issue + comments (GitHub via `gh`; Linear via the ticket file Kakashi captured over the MCP) + linked PRs + code + backend repos |
 | `shikamaru` | Scholar | opus | Plan (`plan.md`, revised on a design deviation), root-cause, correctness review, issue-draft review (`/scroll`), difficulty verdict (`assess`) |
-| `sakura` | Enforcer | opus | Verification gauntlet (`pnpm check` + tests) + convention rules |
+| `sakura` | Enforcer | opus | Verification gauntlet (`bun run check` + tests) + convention rules |
 | `anbu` | Red-team | opus | Adversarial security + edge-case + failure-path review (full-tier council only) |
 | `kurenai` | Illusion-dispel | opus | Genjutsu release (Kai) — AI-output review: hallucinated symbols, invented compatibility, prompt leakage, narration, fabricated tests; every finding carries its dispel proof |
 | `naruto` | Shipwright | sonnet | Commit, push, open PRs, edit PR bodies through the image guard, post comments/replies |
@@ -176,10 +176,19 @@ declines need a `GRANTED` ruling from the Codex arbiter — `sakura` verifies, `
 resolves fixed threads, and edits a stale body line through `edit-pr` (images kept verbatim).
 AI credit: **No** (your own PR).
 
-### `/exam <pr-url>` — review a colleague's PR
+### `/exam <pr-url or stack-url>` — review a colleague's PR or stack
 Runs **`_council-review` (comment adapter)** on the PR, Kakashi consolidates the findings into **one**
 comment, `naruto` posts it in your name with an attributed footer. Plain comment — not a formal
 Approve / Request-changes. AI credit: **Yes** — `🍃 Review generated with Julia's Claude Code.`
+
+A stack URL (`github.com/<owner>/<repo>/stack/<n>`) reviews every open PR of the chain. Kakashi reads
+it over `gh api repos/<owner>/<repo>/stacks/<n>`, gives each open PR its own worktree, base and
+council, one at a time from the bottom, and runs Gaara once on the whole diff. Each finding goes to
+the lowest PR that introduces it. The result is one review per open PR, posted after one gate, plus
+one Slack block for the whole stack. AI credit: **No** — the user chose no footer (2026-11-10).
+
+Every review body, single-PR or stack, uses the same Markdown: `###` section headings, a bold lead
+phrase per finding, identifiers and `file:line` in backticks, and code in fenced blocks.
 
 ### `/seal <pr-url>` — seal an existing PR with the workflow fingerprint
 For a PR of the user's own that predates the workflow, or was opened outside `/mission`: the live
@@ -211,6 +220,7 @@ of findings. The **caller** applies the output adapter:
 |---|---|---|---|
 | `/mission` | your own diff (pre-PR) | **fix** | Kakashi fixes findings, re-verifies, then ships |
 | `/exam` | a colleague's PR | **comment** | consolidate → one attributed comment |
+| `/exam` | a colleague's stack | **comment**, per PR | verify, place on the lowest PR → one review per open PR, one gate |
 
 ## Language standard: ASD-STE100
 
@@ -236,6 +246,7 @@ and caller-passed text stays verbatim.
 | `/mission` commits + PR | yours | **No** |
 | `/debrief` fix commits + replies | yours | **No** |
 | `/exam` review comment | colleague's PR | **Yes** — attributed footer |
+| `/exam` stack reviews | colleague's stack, one per PR | **No** — no footer, names no AI |
 
 ## Folder layout
 
@@ -249,6 +260,7 @@ konoha/
 ├── scripts/gaara-codex.sh      ← Codex adapter for the counselor (review close)
 ├── scripts/arbiter-codex.sh    ← Codex adapter for the arbiter (rulings on declined findings)
 ├── scripts/pr-body.sh          ← image guard: the only way a PR body is edited (check + edit)
+├── scripts/worktree-setup.sh   ← makes a worktree runnable: env files in their app folders, submodules, bun install
 └── skills/
     ├── scroll/SKILL.md          ← create a Linear issue (issue-creation workflow)
     ├── mission/SKILL.md         ← ticket → Draft PR
@@ -328,4 +340,18 @@ The themed skills evolve logic you already have; your current skills stay untouc
   retired; `architect-codex.sh` becomes `arbiter-codex.sh` (`ARBITER_*` env), which keeps only
   the rulings on declined findings. `/mission` loses its plan-review step, so the PR description
   is now step 10 and the ship confirmation step 11.
+- **Phase 3.12 (0.12.0)** — `/exam` takes a stack URL and writes `~/Desktop/stack-<n>-review.md`
+  instead of commenting: one section per PR, one whole-stack Codex read, no attribution. And
+  worktree setup for the Bun workspace: `scripts/worktree-setup.sh`
+  replaces the setup blocks of `/mission`, `/exam` and `/seal`, and `/debrief` runs it too. It
+  copies each env file beside its tracked `.env.example` (`apps/terminal/.env`, never the worktree
+  root), copies the TradingView submodule from `apps/terminal/tradingview`, installs `node_modules`
+  in the worktree instead of a symlink to the main checkout's, and fails when the setup changes
+  `git status`. `/mission` stops when the main checkout has no env file; it no longer skips the
+  step in silence. Sakura stops installing and runs on the `.nvmrc` Node, and `pnpm` commands
+  become `bun run`.
+- **Phase 3.13 (0.13.0)** — `/exam` on a stack URL posts one review per open PR again, through one
+  gate, with no footer, instead of the Desktop file. Every review body takes the file's Markdown
+  style: `###` section headings, a bold lead phrase per finding, backticked identifiers and
+  `file:line`, fenced code blocks.
 - **Phase 4 (optional)** — profiles.json, local resume.

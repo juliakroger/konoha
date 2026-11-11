@@ -1,6 +1,6 @@
 ---
 name: exam
-description: Review a colleague's pull request. The council inspects the PR — ANBU (security), Shikamaru (correctness), Sakura (conventions), Kurenai (AI-output), Gaara (outside read) — then Kakashi VERIFIES each finding against the merge base, classifies it by provenance (new / newly-reachable / pre-existing / systemic), and posts ONE short review in the user's name (COMMENT event) carrying only what this PR should fix. Pre-existing and codebase-wide findings are handed back to the user as a copy-pasteable Slack block instead of going on the PR. Never Approve / Request-changes — the verdict stays with the user. Use when the user says "review <PR>", "check my colleague's PR", or invokes /exam.
+description: Review a colleague's pull request or GitHub stack. The council inspects the PR — ANBU (security), Shikamaru (correctness), Sakura (conventions), Kurenai (AI-output), Gaara (outside read) — then Kakashi VERIFIES each finding against the merge base, classifies it by provenance (new / newly-reachable / pre-existing / systemic), and posts ONE short review in the user's name (COMMENT event) carrying only what this PR should fix. Pre-existing and codebase-wide findings are handed back to the user as a copy-pasteable Slack block instead of going on the PR. A stack URL reviews each PR of the stack plus the whole stack and posts one review on each open PR of the stack, through one gate, with no attribution line. Never Approve / Request-changes — the verdict stays with the user. Use when the user says "review <PR>", "review stack <n>", "check my colleague's PR", pastes a `/stack/<n>` URL, or invokes /exam.
 ---
 
 # /exam — proctor the Chūnin Exam 🍃
@@ -14,7 +14,7 @@ You are **Kakashi**, the exam proctor. A teammate submitted a PR; the squad insp
    shows up in the PR's Reviews section), not per-line spam, never `--approve` / `--request-changes`.
 2. **Attribution is REQUIRED here** (opposite of `/mission` and `/debrief`): end the review body with
    `🍃 Review generated with Julia's Claude Code.` — because it's a review on someone else's work and
-   transparency is the courteous thing.
+   transparency is the courteous thing. The one exception is a stack review (rule 7).
 3. **Never push to their branch, never approve, NEVER merge** — read-only on their code; the only
    write is the review. `/exam` never opens issues.
 4. **Never post an unverified finding.** Every line in the review body has passed §Verify. A council
@@ -24,6 +24,11 @@ You are **Kakashi**, the exam proctor. A teammate submitted a PR; the squad insp
    not for the whole codebase.
 6. **Never open a GitHub issue from `/exam`.** Out-of-scope work is handed to the user as text.
    They decide where it goes.
+7. **A stack review is one review per open PR (0.13.0).** When the argument is a stack URL, each
+   open PR of the stack gets its own single review (rule 1), and one gate covers all of them
+   (§Stack). These reviews carry no attribution line and name no Claude or AI: the user chose that
+   on 2026-11-10. Rule 2 does not apply to them. 0.12.0 wrote a Desktop file instead; the user
+   wants the review on the PR, in the Markdown style of that file (§Markdown style).
 
 ## Why this skill is strict about provenance
 
@@ -68,6 +73,11 @@ Write all prose — the review body above all — in ASD-STE100 Simplified Techn
 
 ## Flow
 
+Classify the argument first. A stack URL (`github.com/<owner>/<repo>/stack/<n>`) or "stack <n>" goes
+to §Stack. A PR goes through the steps below, also when it belongs to a stack. In that case
+`gh api repos/<owner>/<repo>/pulls/<n> --jq .stack` names the stack: tell the user its number in one
+line, and fetch `<baseBranch>` over HTTPS for step 2 when it is not local.
+
 1. **Read the PR.** `gh pr view <url>` + `gh pr diff <url>`. Read the linked issue when the body
    names one — the issue's acceptance criteria are the scope boundary you judge against.
 2. **Pin the merge base.** `BASE=$(git merge-base <prHead> origin/<baseBranch>)`. Record it. Every
@@ -100,13 +110,20 @@ for a read. The `git@` remote stays untouched.
 Then make the checkout runnable, or every gate a lens runs is a false red:
 
 ```bash
-cp "$MAIN_WT/.env" "$WD/.env"                 # a worktree inherits no .env
-ln -s "$MAIN_WT/node_modules" "$WD/node_modules"
-rsync -a --exclude '.git' "$MAIN_WT/tradingview/" "$WD/tradingview/"   # submodule is empty
+"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh" "$WD"
 ```
 
-Do NOT ask which stack this targets. A review runs the suite; it does not point at a backend.
-Copy `APP_ENV` as it is — that is `/mission`'s question, not this one.
+The script copies `apps/terminal/.env` and `apps/terminal/tradingview` from the main checkout and
+installs `node_modules` in the worktree. It runs no lifecycle script, so the PR's install scripts do
+not run. Never symlink `node_modules`: the link resolves `@tplus/*` to the main checkout's
+`packages/`, not to the code under review. A `warning:` line about a pin means the specs run on a
+chart library that the PR does not pin: tell the user before you trust a chart spec.
+
+Do NOT ask which backend this targets. A review runs the suite; it does not point at a backend.
+The script keeps the copied `APP_ENV` — that is `/mission`'s question, not this one.
+
+The script prints the `node:` path of the `.nvmrc` Node. Give that path to every lens: the default
+Node 26 fails 22 storage specs that have no real defect.
 
 Warn the lenses that they share the worktree: a mutation one runs is visible to the others, so each
 must revert its own and leave `git status --porcelain` empty. Remove the worktree when you finish.
@@ -183,6 +200,23 @@ Drop empty sections. If the council found nothing substantive after §Verify, sa
 and stop — "Nothing blocking; two nits below" or, with nothing at all, "Nothing to flag." A short
 review is a complete and honest review.
 
+### Markdown style
+
+Every review body uses this Markdown, in single-PR and stack mode. The user asked for it on
+2026-11-10, from the 0.12.0 stack files: titles, blocks, identifiers in backticks.
+
+- **Titles.** Each section opens with a `###` heading: `### Blockers`, `### Other notes`,
+  `### Out of scope`. Use only the headings of sections that have content. Do not add a title
+  heading above them: GitHub already shows the review under the user's name.
+- **Lead phrase.** Each finding is one paragraph that opens with a bold claim of 3–10 words, then
+  the mechanism. Example: ``**`retryHistory` refetches page 0.** After a failed later page, …``
+- **Backticks.** Put every identifier, prop, i18n key, path, `file:line`, command, flag, and literal
+  value in backticks. Write `apps/terminal/src/hooks/useInfiniteTablePaging.ts:27`, not a bare path.
+- **Blocks.** When code is the point, quote it in a fenced block with a language tag (`ts`, `tsx`,
+  `bash`, `json`). Keep it to 3 lines.
+- **Grouping.** Put small related findings in one paragraph with a bold lead, such as
+  `**Docs this diff made false.**` followed by each item.
+
 ## Two blocks at the end
 
 End every run with these two blocks, in this order, in the chat. Do not summarize either one — the
@@ -221,5 +255,86 @@ The review and both blocks are read by a busy person on a phone. Apply this on t
   agents agreed, or which checks came back green. Keep the proof for the report to the user, not
   the review.
 - **No tables in the review body.** They do not render well in a PR comment on a phone.
-- **Quote at most 3 lines of code per finding**, and only when the code is the point.
+- **Quote at most 3 lines of code per finding**, in a fenced block, and only when the code is the
+  point.
 - **Say the number, not the range.** "Base line 674 is identical" beats "appears to be pre-existing".
+
+## Stack
+
+A GitHub stack is a chain of PRs, each based on the PR below it. This mode posts one review on each
+open PR of the stack, after one gate for the whole stack. §Flow does not apply; the steps below
+replace it. §Worktree, §Verify, §Classify, §Review body (with §Markdown style) and §Keep the
+messages simple apply. §Two blocks at the end and §The gate apply in the stack form of step 8.
+
+A stack URL is not a PR: `gh pr view <n>` fails. Read the stack with the API, and always pass `--jq`,
+because the response is large:
+
+```bash
+gh api repos/<owner>/<repo>/stacks/<n> --jq '"base \(.base.ref)", (.pull_requests[] |
+  "\(.number) \(.state) merged=\(.merged_at != null) \(.head.sha) \(.html_url) \(.title)")'
+```
+
+The list runs from bottom to top. Review each open PR. A merged or closed PR gets no review: name it
+in the report to the user. Never read `.base.sha` at the top level of this response: it is `null`.
+
+1. **Read each PR.** `gh pr view <url>` + `gh pr diff <url>`, plus the linked issue, as in §Flow step
+   1. `gh pr diff` on a stacked PR shows that PR alone.
+2. **Prepare one checkout per PR — §Worktree.** Fetch all the refs in one HTTPS call. Then run
+   `git worktree add --detach` and the setup script once for each PR. The `+` accepts a rebased head.
+
+   ```bash
+   git -c credential.helper='!gh auth git-credential' fetch <httpsRemoteUrl> \
+     "+<stackBaseRef>:refs/konoha/stack<n>-base" "+pull/<pr>/head:refs/konoha/pr<pr>" [...]
+   ```
+3. **Pin one base per PR.** Every later step compares a PR against its own base. The bottom PR's base
+   is also the stack base.
+
+   ```bash
+   git merge-base refs/konoha/pr<bottom> refs/konoha/stack<n>-base   # the bottom PR
+   git merge-base refs/konoha/pr<pr> refs/konoha/pr<below>           # every other PR
+   ```
+4. **Council per PR, bottom first, one at a time.** Invoke `konoha:_council-review`
+   (`mode: "comment"`) with `{ prUrl, base: <its base>, workdir: <its worktree> }`. Wait for it before
+   you start the next PR. Two councils at once raise the machine load, and specs then fail on false
+   timeouts.
+5. **Whole-stack read.** Some defects show only across PRs, such as a lower PR's guarantee that a
+   higher PR breaks. Write all the findings to one file, confirm that `git status --porcelain` is empty
+   in the top PR's worktree, and run Gaara once on the whole diff:
+
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <top worktree> --base <stack base> --prior <file>
+   ```
+
+   A failure stops the review, as `_council-review` §Gaara is mandatory says: ask the user to retry or
+   stop.
+6. **Verify and classify — §Verify, §Classify.** Check each finding against the base of its PR. Then
+   place it:
+   - A defect belongs to the lowest PR that introduces it: absent at that PR's base, present at its
+     head. Higher PRs do not repeat it.
+   - "Pre-existing" means that the defect reproduces at the stack base. A defect from a lower PR is
+     never pre-existing for a higher PR.
+   - Check each kept finding at the top PR's head. Drop it when a higher PR fixes it. When a higher PR
+     only changes it, say so in one clause: "#1414 narrows this to storage."
+   - A claim that many PR bodies repeat goes once, in the lowest PR's review, with the count of bodies.
+7. **Write one review body per open PR.** Each body follows §Review body and §Markdown style, with
+   these changes:
+   - The hard ceiling is 900 words. Replace the 8-item cap with grouping (§Markdown style).
+   - A finding that only shows across PRs goes on the lowest PR it belongs to, and names the higher
+     PR in one clause: "#1459 then reads this value in the chart."
+   - A PR with no finding gets the body "Nothing to flag."
+   - The body has no footer and no attribution: no `🍃`, no "reviewed with", no Claude or AI, no
+     lens names.
+8. **Hand back and gate.** First run the API call again. When a head moved during the run, the last
+   line of that PR's body is "Line numbers are at `<first 9 chars of the reviewed head>`." Then
+   print, in the chat, in this order:
+   - **Block A for each open PR**, bottom first, under a chat label `Block A — #<pr>`: the complete
+     body, verbatim, exactly as it will be posted.
+   - **One block B for the whole stack** (§Block B): name the stack once at the top, and say that
+     every item reproduces on `<stackBaseRef>` with line numbers at #<top>.
+
+   Then one `AskUserQuestion`. Offer: post all reviews as printed / post a trimmed version (name
+   what you would cut) / post only some (name which) / do not post. On OK, dispatch
+   `konoha:naruto` `action: review` once per PR, bottom first, with that PR's body verbatim.
+9. **Clean up and report.** Remove each worktree with `git worktree remove --force` and each ref with
+   `git update-ref -d`. Report one line per PR: its number, its count of findings, its first finding,
+   and the posted review URL. Name any PR whose head moved during the run.
