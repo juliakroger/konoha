@@ -2,7 +2,7 @@
 
 A Claude Code plugin: a **squad of Konoha ninja** (reusable subagents) that several dev-workflow skills
 summon. Inspired by [`thk`](https://github.com/thiagokroger/thk) (The Hand of the King), but where thk
-exposes **one** entrypoint, konoha shares **one cast** across **five** skills.
+exposes **one** entrypoint, konoha shares **one cast** across **six** skills.
 
 > You are the **Hokage** — you post the mission and have the final word. The squad does the work.
 
@@ -79,7 +79,7 @@ The seven specialists are real subagents in `agents/*.md`, dispatched via the `A
 | `sakura` | Enforcer | opus | Verification gauntlet (`bun run check` + tests) + convention rules |
 | `anbu` | Red-team | opus | Adversarial security + edge-case + failure-path review (full-tier council only) |
 | `kurenai` | Illusion-dispel | opus | Genjutsu release (Kai) — AI-output review: hallucinated symbols, invented compatibility, prompt leakage, narration, fabricated tests; every finding carries its dispel proof |
-| `naruto` | Shipwright | sonnet | Commit, push, open PRs, edit PR bodies through the image guard, post comments/replies |
+| `naruto` | Shipwright | sonnet | Commit, conclude merge commits, push, open PRs, edit PR bodies through the image guard, post comments/replies |
 | `gaara` | Arbiter & Counselor | **Codex CLI** | Closes reviews (`gaara-codex.sh`) and rules on declined findings (`arbiter-codex.sh`) — newest `gpt-*-sol`, the user's config effort, every run logged (0.10.0); mandatory, never falls back to Claude. From 0.3.0 to 0.10.0 also the decision maker that authored `plan.md` |
 
 *(Cut vs thk: no Budget / Master of Coin — Kakashi watches scope himself.)*
@@ -137,7 +137,7 @@ Because a failed closer now halts the review, the script takes the local diff ag
 auto-staged edits and add-only changes as `EMPTY_DIFF`.
 A full `profiles.json` (swap any office's model without editing files) is a later phase.
 
-## The five skills
+## The six skills
 
 ### `/scroll` — draft a Linear issue from a description
 The org's issue-creation workflow (`tplus-services docs/process/issue-creation.md`) with terminal's
@@ -171,10 +171,16 @@ through `edit-pr` → `pr-body.sh`, images kept verbatim) → metrics line appen
 ### `/debrief <pr-url>` — resolve the reviews on your PR
 Two inputs, in order: (1) the **PR URL** → pull comments via `gh` (the AI review bot first, then
 teammates); (2) then the skill **asks** if there's a **Slack** review to paste (optional). `shikamaru`
-maps the feedback to the task, Kakashi triages (accept / defer / decline-candidate) and fixes —
-declines need a `GRANTED` ruling from the Codex arbiter — `sakura` verifies, `naruto` commits +
-resolves fixed threads, and edits a stale body line through `edit-pr` (images kept verbatim).
-AI credit: **No** (your own PR).
+maps the feedback to the task, Kakashi triages (fix / won't do / another task / question) and
+writes one list: the fixes he makes, and the items he proposes not to do. A won't-do proposal needs
+a `GRANTED` ruling from the Codex arbiter; the user's own decision needs none. `sakura` verifies.
+After one gate `naruto` commits with a message that names the fix (never `Fix review`; several
+fixes → a subject that sums them up and one body line for each), pushes, and the fixed threads are
+resolved with no reply. Each decision not to do an item gets one short comment with the reason —
+a reply in its thread, or one PR comment for the items with no thread. An item that moves to
+another task gets a Linear ticket in team FE first (`save_issue` over the `linear-server` MCP, the
+`/scroll` sections, no interview), and the comment carries its link. A stale body line is edited
+through `edit-pr` (images kept verbatim). AI credit: **No** (your own PR).
 
 ### `/exam <pr-url or stack-url>` — review a colleague's PR or stack
 Runs **`_council-review` (comment adapter)** on the PR, Kakashi consolidates the findings into **one**
@@ -197,6 +203,20 @@ about what the body leaves out, the requirements check, and the formatting with 
 and every image in its slot. `sakura` verifies the checkout for the Testing facts; `naruto` edits
 the body through `pr-body.sh` and re-runs the test-requirements check (`rerun-check`), whose
 passing run dismisses the bot's "fingerprint missing" review. AI credit: **No** (your own PR).
+
+### `/merge <pr-url, branch or stack-url>` — bring the base into your branch
+For a branch of the user's own that fell behind its base or shows conflicts on GitHub. Kakashi
+fetches `origin/<base>` over HTTPS (`development`, or the branch below in a stack), previews the
+conflicts with `git merge-tree`, runs `git merge --no-ff --no-commit`, and resolves each conflict
+from both sides of the history. The skill names the cases that lose work in silence: a
+modify/delete that drops tests the base added, a file the base moved, `bun.lock`, generated files,
+the `tradingview` gitlink. Then he repairs what the merged tree breaks (removed names, new call
+sites, file-name case), `sakura` verifies, and after one gate `naruto` concludes the merge commit
+(`merge-commit`: `Merge origin/<base> into <branch>`, one body line for each manual resolution)
+and pushes the branch (`push`). A stack URL cascades from the bottom up: each branch takes the
+branch below it, commits as the cascade goes, and all pushes wait for one gate. The direction is
+fixed: the base comes into the branch. `/merge` never merges the PR and never pushes to the base.
+AI credit: **No** (your own branch).
 
 ## The shared module: `_pr-creation`
 
@@ -244,7 +264,8 @@ and caller-passed text stays verbatim.
 |---|---|---|
 | `/scroll` issue | yours (internal) | — |
 | `/mission` commits + PR | yours | **No** |
-| `/debrief` fix commits + replies | yours | **No** |
+| `/debrief` fix commits, decision comments + Linear tickets | yours | **No** |
+| `/merge` merge commit | yours | **No** |
 | `/exam` review comment | colleague's PR | **Yes** — attributed footer |
 | `/exam` stack reviews | colleague's stack, one per PR | **No** — no footer, names no AI |
 
@@ -267,6 +288,7 @@ konoha/
     ├── debrief/SKILL.md         ← resolve reviews on your PR
     ├── exam/SKILL.md            ← review a colleague's PR
     ├── seal/SKILL.md            ← seal an existing PR with the PR workflow fingerprint
+    ├── merge/SKILL.md           ← bring the base into your branch, fix the conflicts
     ├── _pr-creation/SKILL.md    ← shared PR creation workflow (link, split, requirements, draft, interview, footer)
     └── _council-review/SKILL.md ← shared diff review (fan-out + close)
 ```
@@ -278,7 +300,7 @@ konoha/
 /plugin install konoha@konoha
 ```
 
-Skills are then invoked as `/konoha:scroll`, `/konoha:mission`, `/konoha:debrief`, `/konoha:exam`, `/konoha:seal`;
+Skills are then invoked as `/konoha:scroll`, `/konoha:mission`, `/konoha:debrief`, `/konoha:exam`, `/konoha:seal`, `/konoha:merge`;
 agents dispatch as `subagent_type: "konoha:itachi"` (etc.). Run `/reload-plugins` or restart the
 session after changes.
 
@@ -293,6 +315,7 @@ The themed skills evolve logic you already have; your current skills stay untouc
 | `/debrief` | `resolve-comments` (+ Slack-text input) |
 | `/exam` | — (new) |
 | `/seal` | — (new) |
+| `/merge` | — (new; the `/mission` resync step, for a branch that is already out) |
 
 ## v1 scope (deferred from thk)
 
@@ -354,4 +377,12 @@ The themed skills evolve logic you already have; your current skills stay untouc
   gate, with no footer, instead of the Desktop file. Every review body takes the file's Markdown
   style: `###` section headings, a bold lead phrase per finding, backticked identifiers and
   `file:line`, fenced code blocks.
+- **Phase 3.14 (0.14.0)** — three changes from how the commit tree and the reviews read. Commit
+  messages name the change: `/debrief` stops writing `Fix review` / `Fix <Name> review`, and
+  `/mission`, `/debrief` and `/seal` share one shape — a subject that says what was wrong, and
+  for several fixes a subject that sums them up plus one body line for each. `/debrief` records
+  each decision not to do an item as one short comment (this ends the "never post replies" rule
+  for that one case) and creates the Linear ticket when the item moves to another task. The new
+  `/merge` brings the base into a branch or a stack and fixes the conflicts; Naruto gains
+  `merge-commit` and `push`.
 - **Phase 4 (optional)** — profiles.json, local resume.

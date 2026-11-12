@@ -94,6 +94,16 @@ the code yourself (single-agent execution).
     integration reads the magic word + identifier; the URL is what a GitHub reader clicks. A
     GitHub issue is linked in the full cross-repo form, `Closes <owner>/<repo>#<n>`, even in its
     own repo — the form the auditor's check reads on a PR into any branch (0.10.0).
+14. **A commit message names the change (0.14.0).** The first commit says what the PR does; the
+    PR title is the default subject. Every later commit — a red CI check, a change she asks for
+    after the PR is open, a fix from a re-gate — says what was wrong or what changed, in plain
+    words: `Fix EVM providers not being called properly`. Never `Fix review`, `Fix reviews`,
+    `Fix <Name> review`, `Fix CI`, `Address feedback` or `Update`: a subject like that says
+    nothing in the commit tree. Subject: imperative, a capital first letter, max 72 characters,
+    no period, no reviewer name. One fix → the subject alone. Several fixes in one commit → the
+    subject sums them up by what they have in common, and the body gives the details, one
+    `- <what changed>` line for each fix. A merge of the base keeps git's form with the real
+    branch names: `Merge origin/development into <branch>`.
 
 ## Language (ASD-STE100)
 
@@ -213,10 +223,10 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
    rule for declines), re-run verify. Findings that survive this round go to the user — there is
    no round 3. Script failure: same fail-closed retry-or-stop as `_council-review`.
 9. **Resync.** `git fetch origin development`; if the base moved since preflight, merge it into
-   the branch, fix semantic conflicts, run `"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh"
-   "$WT_PATH"` again because a merge can move `bun.lock`, and re-run the full gate set
-   (`typecheck`, `lint`, `format:check`, tests) on the merged tree (hard rule 7). Refresh
-   `verify-<branch>.md`.
+   the branch (`origin/development`, never a scratch ref — hard rule 14), fix semantic conflicts,
+   run `"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh" "$WT_PATH"` again because a merge can
+   move `bun.lock`, and re-run the full gate set (`typecheck`, `lint`, `format:check`, tests) on
+   the merged tree (hard rule 7). Refresh `verify-<branch>.md`.
 10. **PR description — the PR creation workflow.** Invoke the `konoha:_pr-creation` module with
     `{ workdir, base: 'development', repo, ticket, verifyFile, planFile? }` — `ticket` is
     `{ kind: 'github', url }` or `{ kind: 'linear', url, identifier, file: ticket-<key>-<n>.md }`;
@@ -233,15 +243,17 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
     the dials (`difficulty`, council `tier`) and get a single OK (`AskUserQuestion`) — in that same
     prompt, tell her the ship step pops her **YubiKey PIN dialog + touch once per commit to sign
     and again to push**, so she should have the key plugged in and be ready to approve each. Then
-    dispatch `konoha:naruto` `action: commit` + `action: open-pr` (`--draft --base development`, with
+    dispatch `konoha:naruto` `action: commit` (the message of hard rule 14) + `action: open-pr`
+    (`--draft --base development`, with
     `script` so it runs the create-time image check; the body file is the module's, footer
     included, verbatim); Naruto drives both through her PIN popup (hard rule 8). When the PR
     already exists, dispatch `action: edit-pr` with the live-body-based file instead of `open-pr`
     (hard rule 12). If any prompt stalls, give her the exact `git commit` / `git push` /
     `gh pr create` to run herself.
 12. **Report & log.** Report the Draft PR URL, then watch CI on the PR (`gh pr checks --watch` or
-    poll) and fix any red check before calling the mission done. Say that the test-requirements
-    check skips a Draft and runs when she marks the PR ready, where it reads the fingerprint; if
+    poll) and fix any red check before calling the mission done — as a new commit whose message
+    names what it fixes (hard rule 14). Say that the test-requirements check skips a Draft and
+    runs when she marks the PR ready, where it reads the fingerprint; if
     she edits the body in the browser the footer must stay the last lines. Finally append one
     JSON line to `~/.konoha/metrics.jsonl` (`mkdir -p ~/.konoha` first — `issue` is the issue URL,
     GitHub or Linear):

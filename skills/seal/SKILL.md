@@ -24,8 +24,9 @@ docs/process/pr-creation.md`, enforced by the auditor's test-requirements check)
    has no attribution line, the new body has none.
 5. **Never mark the PR ready, never merge, never force-push.** `/seal` changes the description.
    The one code change it may make is what the interview decides — a removed test, a trimmed
-   comment — as a new commit, append-only, with a terse message that names the change (`Remove
-   unneeded tests`, `Trim comments`), no review source and no attribution.
+   comment — as a new commit, append-only, with a message that names the change (`Remove
+   unneeded tests`, `Trim comments`; several changes → a subject that sums them up and one body
+   line for each), no review source and no attribution.
 6. **YubiKey approval for that commit and push.** Each pops her PIN dialog + touch
    (`SSH_ASKPASS="$HOME/.ssh/yk-askpass.sh" SSH_ASKPASS_REQUIRE=force`). Tell her before Naruto
    runs them; if a prompt stalls, hand her the exact `git commit` / `git push` — never

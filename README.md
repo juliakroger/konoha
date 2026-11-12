@@ -5,15 +5,16 @@ skills summon.
 
 > You are the **Hokage**: you post the mission, you have the final word. The squad does the work.
 
-## The five skills
+## The six skills
 
 | Command | Does | Reviews with you? |
 |---|---|---|
 | **`/scroll`** | Draft a **Linear** issue in team FE from a description you give — the org's issue-creation workflow: interview (≥5 rounds), background research, Summary / Context / Scope / Verification, a fresh-context review, one approval | — |
 | **`/mission <issue>`** | Take a GitHub or Linear issue end-to-end to a **Draft PR** (links it with `Closes <owner>/<repo>#<n>` / `Closes <KEY>-<n>`); ends with the **PR creation workflow** — you write the description, Kakashi interviews you and seals it with the fingerprint | yes — council reviews the diff and fixes before shipping |
-| **`/debrief <pr-url>`** | Resolve the reviews on **your** PR — the AI review bot + teammates + (optionally) a pasted Slack review | — |
+| **`/debrief <pr-url>`** | Resolve the reviews on **your** PR — the AI review bot + teammates + (optionally) a pasted Slack review. The fix commit names the fix; an item you decide not to do gets a short comment with the reason, and a Linear ticket when it moves to another task | — |
 | **`/exam <pr-url or stack-url>`** | Review a **colleague's** PR and post **one** comment in your name. A **stack** URL reviews each PR plus the whole stack and posts one review per open PR, with no footer | yes — council inspects, you approve what gets posted |
 | **`/seal <pr-url>`** | Run the PR creation workflow on an existing PR of **yours** — the live body is your draft; interview, re-section, fingerprint, edit through the image guard, re-run the check | — |
+| **`/merge <pr-url, branch or stack-url>`** | Bring the base (`development`, or the branch below in a stack) into **your** branch as a merge commit and fix the conflicts, so the PR merges clean again. Never merges the PR, never pushes to the base | — |
 
 ## The cast (subagents)
 
@@ -29,12 +30,12 @@ to Claude — **Claude plans and executes**; Codex closes the review and rules o
 | **Sakura** | Enforcer | Verification gauntlet (`bun run check` + tests = "vitals green") + convention rules | Claude Opus | Claude Opus *(unchanged)* | Claude Opus *(unchanged)* |
 | **ANBU** | Red-team | Covert adversarial review — security + edge cases + failure paths (timeouts, retries, rollback, data loss) | Claude Opus | Claude Opus *(unchanged)* | Claude Opus *(unchanged)* |
 | **Kurenai** | Illusion-dispel | Genjutsu release (*Kai*) — AI-output review: hallucinated APIs, invented compatibility, prompt leakage, narration, fabricated tests | — | Claude Opus *(joined in 0.4)* | Claude Opus *(unchanged)* |
-| **Naruto** | Shipwright | Kage Bunshin + toad summons — commit, push, open PRs, edit PR bodies (image guard), post comments/replies | Claude Sonnet | Claude Sonnet *(unchanged)* | Claude Sonnet *(unchanged)* |
+| **Naruto** | Shipwright | Kage Bunshin + toad summons — commit, conclude merge commits, push, open PRs, edit PR bodies (image guard), post comments/replies | Claude Sonnet | Claude Sonnet *(unchanged)* | Claude Sonnet *(unchanged)* |
 | **Gaara** | Arbiter & Counselor | Kazekage of Suna — a different village = a different model | Codex CLI (newest GPT) — review closer only | Codex CLI (newest `gpt-*-sol`, your config's reasoning effort, every run logged) — **the decision maker**: authored `plan.md`, ruled on contested findings, closed reviews | Codex CLI (same model and effort, every run logged) — closes reviews and **rules on declined findings**; no longer plans |
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Eleven rules baked in
+## Fourteen rules baked in
 
 1. **The council-review module is shared** between `/mission` (fixes findings before shipping) and
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
@@ -81,6 +82,20 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
     model) at the reasoning effort of your codex config (`max`); `GAARA_REASONING` /
     `ARBITER_REASONING` override it. Every call appends a line to `~/.konoha/codex-runs.jsonl` with model, effort,
     exit, duration and token usage, and a run that returns nothing exits 5 instead of passing.
+12. **A commit message names the change, never the review.** `Fix review`, `Fix reviews` and
+    `Fix <Name> review` say nothing in the commit tree, so no skill writes them. The subject says
+    what was wrong or what changed (`Fix EVM providers not being called properly`). A commit with
+    several fixes has a subject that sums them up and a body with one line for each fix. Naruto
+    refuses a message that names only the review.
+13. **A decision not to do a review item is written on the PR.** `/debrief` resolves the threads it
+    fixed, with no reply. For each item you and Kakashi decide not to do, it posts one short
+    comment with the reason in simple words, after you approve the text. When the item moves to
+    another task, it creates the Linear ticket first and the comment carries the link.
+14. **`/merge` brings the base into your branch, and nothing the other way.** One merge commit,
+    from `origin/<base>`, with each manual resolution named in the commit body; conflicts are
+    resolved from both sides of the history, and the merged tree passes the full gates before
+    the push. It never merges the PR, never pushes to `development`, never rebases, never
+    force-pushes. A stack URL cascades from the bottom up.
 
 ## Install (local)
 
