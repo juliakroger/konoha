@@ -2,7 +2,7 @@
 
 A Claude Code plugin: a **squad of Konoha ninja** (reusable subagents) that several dev-workflow skills
 summon. Inspired by [`thk`](https://github.com/thiagokroger/thk) (The Hand of the King), but where thk
-exposes **one** entrypoint, konoha shares **one cast** across **six** skills.
+exposes **one** entrypoint, konoha shares **one cast** across **seven** skills.
 
 > You are the **Hokage** — you post the mission and have the final word. The squad does the work.
 
@@ -137,7 +137,7 @@ Because a failed closer now halts the review, the script takes the local diff ag
 auto-staged edits and add-only changes as `EMPTY_DIFF`.
 A full `profiles.json` (swap any office's model without editing files) is a later phase.
 
-## The six skills
+## The seven skills
 
 ### `/scroll` — draft a Linear issue from a description
 The org's issue-creation workflow (`tplus-services docs/process/issue-creation.md`) with terminal's
@@ -218,6 +218,20 @@ branch below it, commits as the cascade goes, and all pushes wait for one gate. 
 fixed: the base comes into the branch. `/merge` never merges the PR and never pushes to the base.
 AI credit: **No** (your own branch).
 
+### `/cleanup [pr-url, branch, stack-url or ticket]` — close the work after the merge
+For a PR of the user's own that she merged. Kakashi runs it from the main loop, with no subagent:
+the work is a few `gh`, `git` and Linear calls. He builds the set from the ticket — every PR whose
+body says `Closes` or `Part of` it — checks that each PR is merged and hers, and fetches each
+merged head over HTTPS. `scripts/worktree-cleanup.sh` then removes the worktree, the local branch
+and the stale `origin/<branch>` ref, or refuses. A squash merge leaves the branch with no ancestor
+relation to the base, so the script's test is its own: the tip of the local branch must be the
+merged PR head or an ancestor of it. It also refuses uncommitted or untracked files, a process
+that runs from the worktree, and ignored files that only the worktree has. The invocation is the
+approval: a clean target gets no prompt, and a refusal becomes one written list. The Linear
+ticket moves to Done over the MCP only when all of its PRs are merged. Nothing on GitHub changes,
+and no step needs the YubiKey. With no argument and no work in the session, the skill lists the
+merged PRs that still have a worktree, and she chooses. AI credit: — (no commit, no comment).
+
 ## The shared module: `_pr-creation`
 
 `/mission` (step 10) and `/seal` run the same PR creation workflow —
@@ -266,6 +280,7 @@ and caller-passed text stays verbatim.
 | `/mission` commits + PR | yours | **No** |
 | `/debrief` fix commits, decision comments + Linear tickets | yours | **No** |
 | `/merge` merge commit | yours | **No** |
+| `/cleanup` | yours | — (writes no commit and no comment; it changes only the ticket status) |
 | `/exam` review comment | colleague's PR | **Yes** — attributed footer |
 | `/exam` stack reviews | colleague's stack, one per PR | **No** — no footer, names no AI |
 
@@ -282,6 +297,7 @@ konoha/
 ├── scripts/arbiter-codex.sh    ← Codex adapter for the arbiter (rulings on declined findings)
 ├── scripts/pr-body.sh          ← image guard: the only way a PR body is edited (check + edit)
 ├── scripts/worktree-setup.sh   ← makes a worktree runnable: env files in their app folders, submodules, bun install
+├── scripts/worktree-cleanup.sh ← removes the worktree and local branch of a merged PR, or refuses when something would be lost
 └── skills/
     ├── scroll/SKILL.md          ← create a Linear issue (issue-creation workflow)
     ├── mission/SKILL.md         ← ticket → Draft PR
@@ -289,6 +305,7 @@ konoha/
     ├── exam/SKILL.md            ← review a colleague's PR
     ├── seal/SKILL.md            ← seal an existing PR with the PR workflow fingerprint
     ├── merge/SKILL.md           ← bring the base into your branch, fix the conflicts
+    ├── cleanup/SKILL.md         ← after the merge: remove the worktree and branch, move the ticket to Done
     ├── _pr-creation/SKILL.md    ← shared PR creation workflow (link, split, requirements, draft, interview, footer)
     └── _council-review/SKILL.md ← shared diff review (fan-out + close)
 ```
@@ -300,7 +317,7 @@ konoha/
 /plugin install konoha@konoha
 ```
 
-Skills are then invoked as `/konoha:scroll`, `/konoha:mission`, `/konoha:debrief`, `/konoha:exam`, `/konoha:seal`, `/konoha:merge`;
+Skills are then invoked as `/konoha:scroll`, `/konoha:mission`, `/konoha:debrief`, `/konoha:exam`, `/konoha:seal`, `/konoha:merge`, `/konoha:cleanup`;
 agents dispatch as `subagent_type: "konoha:itachi"` (etc.). Run `/reload-plugins` or restart the
 session after changes.
 
@@ -316,6 +333,7 @@ The themed skills evolve logic you already have; your current skills stay untouc
 | `/exam` | — (new) |
 | `/seal` | — (new) |
 | `/merge` | — (new; the `/mission` resync step, for a branch that is already out) |
+| `/cleanup` | — (new; what you did by hand after a merge: move the ticket, remove the worktree) |
 
 ## v1 scope (deferred from thk)
 
@@ -385,4 +403,8 @@ The themed skills evolve logic you already have; your current skills stay untouc
   for that one case) and creates the Linear ticket when the item moves to another task. The new
   `/merge` brings the base into a branch or a stack and fixes the conflicts; Naruto gains
   `merge-commit` and `push`.
+- **Phase 3.15 (0.15.0)** — `/cleanup` closes the work after the user merges a PR: the guard
+  script `worktree-cleanup.sh` removes the worktree and the local branch of each merged PR or
+  refuses, and the Linear ticket moves to Done when all of its PRs are merged. No subagent, no
+  GitHub write, no YubiKey step.
 - **Phase 4 (optional)** — profiles.json, local resume.

@@ -5,7 +5,7 @@ skills summon.
 
 > You are the **Hokage**: you post the mission, you have the final word. The squad does the work.
 
-## The six skills
+## The seven skills
 
 | Command | Does | Reviews with you? |
 |---|---|---|
@@ -15,6 +15,7 @@ skills summon.
 | **`/exam <pr-url or stack-url>`** | Review a **colleague's** PR and post **one** comment in your name. A **stack** URL reviews each PR plus the whole stack and posts one review per open PR, with no footer | yes — council inspects, you approve what gets posted |
 | **`/seal <pr-url>`** | Run the PR creation workflow on an existing PR of **yours** — the live body is your draft; interview, re-section, fingerprint, edit through the image guard, re-run the check | — |
 | **`/merge <pr-url, branch or stack-url>`** | Bring the base (`development`, or the branch below in a stack) into **your** branch as a merge commit and fix the conflicts, so the PR merges clean again. Never merges the PR, never pushes to the base | — |
+| **`/cleanup [pr-url, branch, stack-url or ticket]`** | Close the work after **your** PR is merged: remove the worktree and the local branch of each merged PR through a guard script, and move the Linear ticket to Done when all of its PRs are merged. Changes nothing on GitHub, needs no YubiKey | — |
 
 ## The cast (subagents)
 
@@ -35,7 +36,7 @@ to Claude — **Claude plans and executes**; Codex closes the review and rules o
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
 
-## Fourteen rules baked in
+## Fifteen rules baked in
 
 1. **The council-review module is shared** between `/mission` (fixes findings before shipping) and
    `/exam` (consolidates findings into one comment). Built once, two output adapters.
@@ -96,6 +97,13 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full design.
     resolved from both sides of the history, and the merged tree passes the full gates before
     the push. It never merges the PR, never pushes to `development`, never rebases, never
     force-pushes. A stack URL cascades from the bottom up.
+15. **`/cleanup` removes only what is merged, and only when nothing is lost.** After you merge a
+    PR, it removes the worktree and the local branch through `scripts/worktree-cleanup.sh`. The
+    script refuses a worktree with uncommitted or untracked files, a branch with commits that the
+    merged PR does not have, a worktree that a process runs from, and ignored files that exist
+    only there. The invocation is the approval, so a clean target gets no extra prompt. The
+    Linear ticket moves to Done only when all of its PRs are merged. Nothing on GitHub changes:
+    no remote branch delete, no push, no comment.
 
 ## Install (local)
 
