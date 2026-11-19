@@ -1,6 +1,6 @@
 ---
 name: seal
-description: Run the PR creation workflow on an existing pull request of YOUR own and seal it with the fingerprint the auditor's test-requirements check reads. The live body is your draft — Kakashi interviews you only about what it leaves out, re-sections it with your words verbatim, keeps every image in its slot, edits the PR through the image guard, re-runs the check, and reports when the bot's "fingerprint missing" review is dismissed. Use when the user says "seal <PR>", "run the PR workflow on <PR>", "fix the fingerprint review on <PR>", or invokes /seal.
+description: Run the PR creation workflow on an existing pull request of YOUR own and seal it with the fingerprint the auditor's test-requirements check reads. The live body is your text — Kakashi adapts it (no interview): fills what it leaves out from the diff and the PR's history, re-sections it with your words verbatim, shows it once with what it proposes to cut, keeps every image in its slot, edits the PR through the image guard, re-runs the check, and reports when the bot's "fingerprint missing" review is dismissed. Use when the user says "seal <PR>", "run the PR workflow on <PR>", "fix the fingerprint review on <PR>", or invokes /seal.
 ---
 
 # /seal — fūinjutsu, seal the scroll 🍃
@@ -12,9 +12,10 @@ docs/process/pr-creation.md`, enforced by the auditor's test-requirements check)
 
 ## Hard rules
 
-1. **Her PR, her words.** The live body is her draft (module hard rules 1 and 3). Never send the
-   "Please draft your PR description" message when a body exists. Interview only about what the
-   body leaves out. Never reword a line she wrote.
+1. **Her PR, her words, no interview (0.18.0).** The live body is her text (module hard rules 1,
+   1a and 3). Never ask her to draft and never run interview rounds: fill what the body leaves
+   out yourself, from the diff, the commits, the debrief and the verify report. Never reword a
+   line she wrote.
 2. **Only her own PRs.** The PR author must be the `gh` user (`gh api user --jq .login`). A
    colleague's PR is `/exam`'s domain — stop and say so.
 3. **Edit through the image guard only** — Naruto `edit-pr` → `pr-body.sh edit`. Never run
@@ -23,8 +24,8 @@ docs/process/pr-creation.md`, enforced by the auditor's test-requirements check)
 4. **No AI attribution.** The footer is the workflow's record, not attribution. If the live body
    has no attribution line, the new body has none.
 5. **Never mark the PR ready, never merge, never force-push.** `/seal` changes the description.
-   The one code change it may make is what the interview decides — a removed test, a trimmed
-   comment — as a new commit, append-only, with a message that names the change (`Remove
+   The one code change it may make is a proposal she accepts at the gate — a removed test, a
+   trimmed comment — as a new commit, append-only, with a message that names the change (`Remove
    unneeded tests`, `Trim comments`; several changes → a subject that sums them up and one body
    line for each), no review source and no attribution.
 6. **YubiKey approval for that commit and push.** Each pops her PIN dialog + touch
@@ -70,11 +71,13 @@ Write all prose — questions, notes, the report — in ASD-STE100 Simplified Te
    `{ workdir, base: baseRefName, repo, ticket, verifyFile, pr: { url, liveBodyFile, title } }`.
    `ticket` comes from the live body's `Closes` / `Part of` line or the branch name (module step
    1); a Linear identifier is fetched over the MCP as `/mission` does (hard rule 7). The module
-   skips its step 6 — the live body is her draft — and runs the interview, the requirements check
-   and the formatting. A test she removes or a comment she trims is a code change: apply it, let
-   Sakura re-run the affected project, and update `verify-<branch>.md`.
-5. **Confirm, then ship.** Show her the final title + body in full and a two-line summary of what
-   moved (sections added, notes added, footer). One `AskUserQuestion`: ship / edit / cancel. When
+   takes the live body as her words, runs its own checks (no interview), the requirements check
+   and the formatting, and returns `proposals`.
+5. **Confirm, then ship.** Show her the final title + body in full, a two-line summary of what
+   moved (sections added, notes added, footer), the `proposals` as a numbered list, and one
+   line: "The body is adapted, not interviewed." One `AskUserQuestion`: ship / edit / cancel. An
+   accepted proposal is a code change: apply it, let Sakura re-run the affected project, update
+   `verify-<branch>.md` and the footer counts. When
    a code change is pending, the same prompt warns that the commit and push pop her YubiKey
    dialog. On ship: Naruto `action: commit` (push) for the code change, if any; then Naruto
    `action: edit-pr` `{ prUrl, bodyFile, title?, script }` with `script` the absolute path of

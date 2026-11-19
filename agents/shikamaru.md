@@ -45,7 +45,7 @@ Write all prose in ASD-STE100 Simplified Technical English:
 
 ## Rules
 
-- Any plan MUST honor the target repo's `CLAUDE.md` (composition, XState helpers, TanStack Query vs
+- Any plan MUST honor the target repo's `CLAUDE.md` (composition, tMachine flows — the repo has no XState since #1440, TanStack Query vs
   REST ownership, i18n keys, no magic literals, sparse comments, avoid `useEffect`). Read it first.
 - Plan against the real code: open every file you plan to change before you choose an approach.
   Every file, function, and API the plan names must exist as claimed — cite `file:line`.
@@ -95,4 +95,4 @@ Write all prose in ASD-STE100 Simplified Technical English:
   `## Verification` item — the three subsections present, each item one line that names a spec
   in `tests/unit/`, `tests/queries/` or `tests/ui/` to write, extend or keep green and says which,
   or `- None: <one-line reason>`. Report findings; never rewrite the draft. The PR description is
-  no longer yours: since 0.10.0 the human writes it and the `_pr-creation` module formats it.
+  no longer yours: since 0.18.0 the `_pr-creation` module builds it from what exists (no interview).

@@ -1,6 +1,6 @@
 ---
 name: _pr-creation
-description: Internal shared module — the PR creation workflow of tplus-services (docs/process/pr-creation.md) run as a konoha step. Given a branch (uncommitted or committed) or an existing PR, it links the issue, checks for a split, checks the ticket's requirements, has the HUMAN write the description, interviews the human about what the draft leaves out, formats the description with the human's words verbatim, and ends it with the fingerprint the auditor's test-requirements check reads. Returns a title + body file; the CALLER ships it (/mission via Naruto open-pr, /seal via Naruto edit-pr + rerun-check). Invoked by /mission and /seal, not by the user directly.
+description: Internal shared module — the PR creation workflow of tplus-services (docs/process/pr-creation.md) run as a konoha step. Given a branch (uncommitted or committed) or an existing PR, it links the issue, checks for a split, checks the ticket's requirements, BUILDS the description from what already exists (the human's words verbatim, the diff, plan.md, deviations.md, the verify report) with no draft request and no interview, lists what it proposes to cut for the caller's one gate, and ends it with the fingerprint the auditor's test-requirements check reads. Returns a title + body file; the CALLER ships it (/mission via Naruto open-pr, /seal via Naruto edit-pr + rerun-check). Invoked by /mission and /seal, not by the user directly.
 ---
 
 # _pr-creation — seal the scroll 🍃
@@ -25,28 +25,38 @@ description**; the caller ships it.
 
 ```
 { title, bodyFile, housekeeping: boolean,
-  fingerprint: { start, end, split, scopeDrift, tests, docs, implementation } }
+  fingerprint: { start, end, split, scopeDrift, tests, docs, implementation },
+  proposals: [ { kind: 'remove-test' | 'trim-comment' | 'scope-drift', where, why } ] }
 ```
+
+`proposals` are the cuts of step 7 that need her yes. The caller shows them at its one gate.
 
 ## Hard rules
 
-1. **The human's words are verbatim.** Every word she writes — the draft and every interview
-   answer — goes into the description as she wrote it, spelling and grammar included. Reformat
-   freely (sections, bullets, identifiers as code); never reword. Your own text is only: the
-   `> [!NOTE]` blocks, the Links, the Testing facts, the Mechanical-changes line, the
-   Items-other-PRs-own list, and the footer.
+1. **Adapt, never interview (0.18.0).** Never send a draft request and never run interview
+   rounds. Build the body from what exists: her words, the ticket, the diff, `plan.md`,
+   `deviations.md`, the debrief and `verifyFile`. Julia, 2026-10-21 on terminal #1251: "I dont
+   want the description to be with my own words, addapt what we had to make sure its following
+   the new standard". The decisions she makes are Draft or ready, one PR or a split, the
+   requirements items, and the step-7 proposals.
+1a. **Her words are verbatim.** Every line she wrote (the live body, bullets she gave in this
+   session, an answer in this session) goes into the description as she wrote it, spelling and
+   grammar included. Reformat freely (sections, bullets, identifiers as code); never reword.
+   Everything else is your text, and it never claims to be hers.
 2. **Never guess an issue.** Every `Closes` / `Part of` line names an issue the human confirmed.
 3. **Don't re-ask what she already said this session.** The mission's ticket is the confirmed
    issue. Her answers to earlier questions count; your own explanations do not. In edit mode the
-   live body is her draft.
-4. **Ask only at the points below.** No researcher, no review subagent, no minimum number of
-   rounds. When a question offers choices, use `AskUserQuestion` and keep a free-form answer
-   possible. A question that needs free text is a plain message that ends your turn.
+   live body is her text.
+4. **Ask only at the points below** (steps 1, 3, 4 and 5). No researcher, no review subagent, no
+   rounds. A question that cannot wait starts with one short context block: why you ask, where
+   the answer goes, what happens after. Then ask in her terms (behaviour, not identifiers). When a
+   question offers choices, use `AskUserQuestion` and keep a free-form answer possible. A question that needs free text is a plain message that ends your turn.
 5. **No AI attribution** — her own PR (konoha rule). The footer is not attribution: it is the
    process record the auditor reads, and it is the last thing in the body. Write it only at the
    end of this module, never to get past the check.
-6. **Never change production code to make a test possible.** In the docs-and-comments round,
-   change only comments and docs.
+6. **Change code only for a requirements item she chose to address now (step 5).** A test
+   removal or a comment trim is a proposal (step 7): the caller applies it only after her yes.
+   Never change production code to make a test possible.
 7. **Images belong to Julia (0.8.0).** In edit mode every image reference of the live body stays
    verbatim, on its own line, in its slot relative to her text. The caller's `pr-body.sh` guard
    refuses anything else.
@@ -87,8 +97,8 @@ Technical English:
    `python-review` → `.py`; `msg-rs-review` → `.rs`; `smart-contracts-solidity-review` → `.sol`.
    terminal runs `frontend-review`.
 
-   A PR that changes no reviewed file is **housekeeping** (docs, CI, a lockfile bump): skip steps
-   4, 6 and 7. Link its issue if it has one (1–2), check the requirements (5), then go to 8.
+   A PR that changes no reviewed file is **housekeeping** (docs, CI, a lockfile bump): skip step
+   4 and the step-7 checks. Link its issue if it has one (1–2), check the requirements (5), then go to 8.
 1. **Find the issue.** Mission: the ticket is the confirmed issue — go to 2. Seal: collect
    candidates from the branch name (`fe-147`, `issue-625`), the commits
    (`git log origin/<base>..HEAD`), the live body's `Closes` / `Part of` lines and the
@@ -154,86 +164,52 @@ Technical English:
    `AskUserQuestion`: **address it now** (make the change or run the test, then move on),
    **explain it in the description** (her words, verbatim, under Requirements), or **proceed**.
    The check never blocks the PR.
-6. **The human writes the description.** Skip in edit mode (the live body is her draft) and when
-   she already wrote one this session. Otherwise send this message, as written, and end your
-   turn — the caller waits for her reply:
-
-   > Please draft your PR description. Describe:
-   > - what the PR accomplishes and why;
-   > - the implementation you chose and any noteworthy implementation decisions;
-   > - any way in which the implementation differs from the issue, and why;
-   > - any tests you added beyond what the issue requested.
-
-   Short fragment bullets are a complete draft (terminal #619 and #591 are her shape). Do not
-   ask her to expand them; the interview covers what they leave out.
-7. **Interview: what the draft leaves out.** Read the draft against the diff, then ask about what
-   it does not cover, as a colleague pair-reviewing the PR would. Keep it conversational and
-   accept brief answers. Record each answer exactly as she wrote it, next to its piece or test.
-   Four areas, in this order:
+6. **Her words.** Collect what she already wrote: the live body (edit mode), bullets she gave in
+   this session, her answers in this session. Never ask her to draft. When she wrote nothing,
+   write the Summary yourself as one-line fragment bullets, her shape (terminal #619, #591), from
+   the ticket and `plan.md`.
+7. **Check what her words leave out — yourself.** No interview. Go through the four areas the
+   workflow names and answer each from the diff, `plan.md`, `deviations.md` and the debrief:
    - **Scope drift** (skip with no issue). The changes beyond the issue's Scope: behaviour it
      doesn't ask for, an unrelated fix or refactor, a changed default, config value or interface.
-     Leave out what the draft already explains as a difference from the issue, and what the
-     scope needs in order to work. Numbered entries — files and a one-line summary — up to five
-     per message. For each she says why it belongs in this PR, or chooses **move it to its own
-     PR** (step 4) or **drop it**.
+     Leave out what the scope needs in order to work. Each one with a reason in `plan.md`,
+     `deviations.md` or the debrief goes under `## Differences from the issue` with that reason.
+     One with no reason anywhere is a `scope-drift` proposal: move it out (step 4) or drop it.
    - **Tests.** Every new test in the diff: `it(…)` / `test(…)` cases, and each test in a new spec
-     file. Leave out the tests that cover a Verification item (step 5 checked them) and the ones
-     the draft justifies. Numbered entries — name and `file:line`, one sentence on what it asserts
-     (read from the code, not the name), the existing test it overlaps if one does — up to five
-     per message. She answers each with a one-line justification (what it protects that nothing
-     else does) or **remove**. A justification that names nothing ("more coverage") → ask once
-     what would break unnoticed without it, then accept. **remove** → delete the test and any
-     helper or fixture only it used, then re-run the affected project (`bun run test:<project>`,
-     or `bunx vitest run <file>` for one spec). Never change production code here.
-   - **Docs and comments.** Added or expanded comments and docs that look excessive: a comment
-     that restates the code; one that narrates the change or its history ("now we…",
-     "previously…", "added for #123") — that belongs in the PR or the commit; a doc comment much
-     longer than its item, or on a private helper whose name says what it does; commented-out
-     code; a new doc or doc section the issue didn't ask for or that repeats another doc. Leave
-     out a comment that explains why (an invariant, an ordering, a workaround), doc comments the
-     repo's conventions require, generated docs, docs the issue asked for, and what the draft
-     justifies. Numbered entries — `file:line`, a one-line summary, why it looks excessive — up to
-     five per message. She answers **keep** with a one-line reason, **trim** (propose the shorter
-     version, apply it once she agrees), or **remove**.
-   - **Implementation.** Break the production diff into pieces a reviewer would ask about: a new
-     type, function, hook, store field, message or config value; a changed code path; an
-     error-handling, ordering or concurrency choice; a choice that affects performance — work on a
-     hot path (a WS frame handler, a render path, an orderbook update), an allocation or I/O in a
-     loop, a data structure or algorithm, a new round trip, a cache. Leave out mechanical changes
-     (renames, imports, formatting) — one line covers them. Go in data-flow order (entry point,
-     state change, output), not file order. For each piece the draft doesn't explain, ask how it
-     works and why it is done this way, naming the file and function — one to three pieces per
-     message. For a performance piece also ask what it costs and why that is acceptable (how
-     often it runs, how large the data gets, whether it was measured; numbers go under Testing).
-     Don't draft her answer ("Is that because…?"). If she asks what a piece does, tell her, then
-     ask for her explanation. If the draft or an answer does not match the code, say so once; she
-     decides whether to change the code, her text, or leave it for your note. On a `standard`
-     mission `plan.md` and `deviations.md` already record the design decisions — use them to ask
-     less, never as her answers.
+     file. State under Testing what each one protects, from the Verification item it covers or
+     from the code (not from its name). A test that protects nothing another test does not, or
+     that the repo's rules forbid (pure sizing, links, copy), is a `remove-test` proposal with
+     its `file:line` and the test it overlaps.
+   - **Docs and comments.** Added comments and docs that restate the code, narrate the change
+     ("now we…", "added for #123"), run much longer than their item, or are commented-out code.
+     Leave out a comment that explains why (an invariant, an ordering, a workaround) and docs the
+     issue asked for. Each one is a `trim-comment` proposal with the shorter version or "remove".
+   - **Implementation.** Break the production diff into the pieces a reviewer would ask about: a
+     new type, function, hook, store field, message or config value; a changed code path; an
+     error-handling, ordering or concurrency choice; a performance choice (hot path, allocation
+     in a loop, new round trip, cache). Explain each under Implementation in data-flow order:
+     how it works and why, from `plan.md` / `deviations.md` and the code. Mechanical changes
+     (renames, imports, formatting) get one line. Where her words and the code differ, say so in
+     a note.
 8. **The description.** Build the body file:
-   - **Her draft**, broken into `## Summary`, `## Implementation`, `## Differences from the issue`
-     and `## Testing`: split into paragraphs or bullets, passages moved under the heading they
-     belong to, identifiers as code. Never reword. Leave out a section that does not apply.
-   - **Her interview answers**, each under its heading after a bold line naming the piece (file
-     and function) or the test. Scope-drift reasons go under Implementation; test justifications
-     under Testing; docs reasons under Implementation; the step-5 "explain" answers under
-     `## Requirements`; the keep-one-PR reason under `## Split`.
-   - **Your notes** — `> [!NOTE]` blocks below the passage or answer they expand: the call path,
-     related changes elsewhere in the diff, the invariant a piece relies on, where her text and
-     the code differ. Never restate or rephrase her words.
+   - **Her words** (step 6), verbatim, under `## Summary` — or under the section they belong
+     to, moved but never reworded.
+   - **Your sections** — `## Implementation`, `## Differences from the issue`, `## Testing`,
+     the step-5 items under `## Requirements`, the keep-one-PR reason under `## Split` — in plain
+     words, fragment bullets where they fit. Leave out a section that does not apply.
+   - **Your notes** — `> [!NOTE]` blocks below a line of hers that needs more: the call path,
+     the invariant a piece relies on, where her text and the code differ. Never restate or
+     rephrase her words.
    - **Links** — the `Closes` / `Part of` lines of step 2, each on its own line. For a stack, a
      `## Stack` section naming the PR this one is stacked on and the parts that follow.
-   - **Testing facts**, under Testing, from `verifyFile`: the commands run (`bun run typecheck`,
-     `bun run lint`, `bun run format:check`, `bun run test:unit`, `bun run test:queries`,
-     `bun run test:ui`) with their results and counts, and the tree they ran on (the merged tree
-     of the resync step). What each new test proves comes from her words or from the
-     Verification item it covers. A PR into `development` gets no CI, so this local gate is the
-     evidence — say so.
+   - **Testing facts**, under Testing, from `verifyFile`: the commands run (`bun run check`,
+     `bun run format:check`, `bun run test`) with their results and counts, and the tree they
+     ran on (the merged tree of the resync step). What each new test protects comes from step 7.
    - **Mechanical changes** — one line at the end of Implementation.
    - **Items other PRs own** — under Requirements: "covered by tpluslabs/<repo>#<n>".
-   - A housekeeping PR has no draft and no interview: write a short description yourself.
-   - **Title.** Mission: a short title (3–6 words) in her style, taken from her draft; she sees it
-     at the ship confirmation. Edit mode: the live title stays unless she changes it.
+   - A housekeeping PR gets a short description with no step-7 sections.
+   - **Title.** Mission: a short title (3–6 words) in her style; she sees it at the ship
+     confirmation. Edit mode: the live title stays unless she changes it.
    - **Footer.** Record `END=$(date -u +%Y-%m-%dT%H:%M:%SZ)` now and end the body with exactly:
      ```
      ---
@@ -243,14 +219,19 @@ Technical English:
      Fields: **split** `under 500 lines` | `one change` (over 500 but one thing) | `kept as one
      PR` | `part <i> of <n>`; **scope drift** `<N> explained, <M> moved out or dropped` | `none`;
      **tests** `<N> justified, <M> removed` | `none new`; **docs and comments** `<N> kept, <M>
-     trimmed or removed` | `none flagged`; **implementation** `<N> pieces, <M> asked about`.
+     trimmed or removed` | `none flagged`; **implementation** `<N> pieces, 0 asked about`.
+     The counts stay true: write the proposals as not yet cut, and the caller rebuilds the footer
+     when she accepts one. A test counts as justified only when Testing states what it protects.
      Housekeeping: `housekeeping, no interview` in place of all five. The check reads only the
      `<!-- … -->` marker — `start` and `end` as `YYYY-MM-DDTHH:MM:SSZ` — the `<sub>` line is for
      people. Nothing follows the marker.
    - Edit mode: carry every image reference of the live body in its slot, on its own line (hard
      rule 7).
 
-   Return `{ title, bodyFile, housekeeping, fingerprint }`. The caller ships in the same step —
+   Return `{ title, bodyFile, housekeeping, fingerprint, proposals }`. The caller shows the full
+   body once, with the proposals and one line that says the body is adapted, not interviewed.
+   An accepted proposal is a code change the caller makes, verifies and counts (the footer
+   changes with it). Then the caller ships in the same step —
    `/mission` through Naruto `open-pr`, `/seal` through Naruto `edit-pr` then `rerun-check`.
 
 ## What the check does with it

@@ -162,8 +162,9 @@ passed to the closer; risk tier computed vs `.konoha/critical-paths`)** — decl
 **delta close** (Gaara alone on the fix diff via `--base` snapshot) → resync → **`_pr-creation`**
 (the PR creation workflow: issue link in the form the check reads — `Closes <owner>/<repo>#<n>`, or
 `Closes <KEY>-<n> — <url>` for Linear — split check, requirements check against the ticket's Scope /
-Verification, the user writes the description, Kakashi interviews her about what it leaves out and
-formats her words verbatim with notes, testing facts and the fingerprint footer) → **one confirm**
+Verification, Kakashi builds the description from what exists — her words verbatim, his own sections
+for scope drift, tests, comments and implementation, no interview — with notes, testing facts and
+the fingerprint footer) → **one confirm**
 (states both dials) → `naruto` opens the Draft PR (base `development`; an existing PR is updated
 through `edit-pr` → `pr-body.sh`, images kept verbatim) → metrics line appended to
 `~/.konoha/metrics.jsonl`. AI credit: **No** (your own PR).
@@ -174,9 +175,18 @@ teammates); (2) then the skill **asks** if there's a **Slack** review to paste (
 maps the feedback to the task, Kakashi triages (fix / won't do / another task / question) and
 writes one list: the fixes he makes, and the items he proposes not to do. A won't-do proposal needs
 a `GRANTED` ruling from the Codex arbiter; the user's own decision needs none. `sakura` verifies.
+Since 0.17.0 the round starts with a history check: the resolved threads, earlier Slack and
+decision comments and the user's rulings are compared with the new items, and each conflict or
+repeat is written up as an explanation (both quotes, why they cannot both hold, the cost of each
+option, a recommendation) that waits for her ruling. `git blame` against the head of the previous
+round counts the findings on lines the last round wrote; more than a third stops the round. A
+round fixes every must-fix and at most 8 others, deletes first, asks before a fix that adds code,
+and leaves proposed mechanisms for after the review. The fixes are reviewed before the gate:
+`move-check.sh`, Gaara on the delta and `naming-codex.sh` (the full council when they add files or
+names or pass 300 lines). A pasted Slack review is posted on the PR verbatim.
 After one gate `naruto` commits with a message that names the fix (never `Fix review`; several
-fixes → a subject that sums them up and one body line for each), pushes, and the fixed threads are
-resolved with no reply. Each decision not to do an item gets one short comment with the reason —
+fixes → a subject that sums them up and one body line for each), pushes, and each fixed thread
+gets a `Fixed in <sha>: <what>` reply and is resolved. Each decision not to do an item gets one short comment with the reason —
 a reply in its thread, or one PR comment for the items with no thread. An item that moves to
 another task gets a Linear ticket in team FE first (`save_issue` over the `linear-server` MCP, the
 `/scroll` sections, no interview), and the comment carries its link. A stale body line is edited
@@ -198,8 +208,8 @@ phrase per finding, identifiers and `file:line` in backticks, and code in fenced
 
 ### `/seal <pr-url>` — seal an existing PR with the workflow fingerprint
 For a PR of the user's own that predates the workflow, or was opened outside `/mission`: the live
-body is her draft, so **`_pr-creation`** runs in edit mode — no draft request, only the interview
-about what the body leaves out, the requirements check, and the formatting with her words verbatim
+body is her text, so **`_pr-creation`** runs in edit mode — no draft request and no interview: it
+fills what the body leaves out itself, runs the requirements check, and the formatting with her words verbatim
 and every image in its slot. `sakura` verifies the checkout for the Testing facts; `naruto` edits
 the body through `pr-body.sh` and re-runs the test-requirements check (`rerun-check`), whose
 passing run dismisses the bot's "fingerprint missing" review. AI credit: **No** (your own PR).
@@ -232,12 +242,26 @@ ticket moves to Done over the MCP only when all of its PRs are merged. Nothing o
 and no step needs the YubiKey. With no argument and no work in the session, the skill lists the
 merged PRs that still have a worktree, and she chooses. AI credit: — (no commit, no comment).
 
+### `/cleanup-worktrees [repo]` — sweep the worktrees after many merges
+For the work that piled up over many merges. Kakashi runs it from the main loop, with no subagent.
+`scripts/worktree-sweep.sh` sorts every worktree and every local branch into `merged`, `open-pr`,
+`closed-pr` and `no-pr`. A branch is merged when a PR of the user's with that head is merged and
+no open PR uses the name. A detached worktree is merged when a base (the default branch or a
+protected branch) or a merged PR holds its HEAD — GitHub's `commits/<sha>/pulls` names the PRs.
+A stack base is not a base: a PR decides its state. The sweep fetches the bases and the missing
+merged heads over HTTPS. Each merged item goes through `scripts/worktree-cleanup.sh`, which has a
+`--detached <path>` mode with the same checks. The clean loop runs in the background. The other
+items and the refusals become one numbered list, and only an answer that names the items is a
+yes. No ticket moves; the report names the Linear tickets of cleaned PRs that are not Done.
+AI credit: — (no commit, no comment).
+
 ## The shared module: `_pr-creation`
 
 `/mission` (step 10) and `/seal` run the same PR creation workflow —
 `tplus-services docs/process/pr-creation.md` adapted to konoha: Kakashi drives it in the main loop,
-the human writes the description and answers the interview, and every word she writes stays
-verbatim. The module produces `{ title, bodyFile, housekeeping, fingerprint }`; the caller ships it
+it adapts what exists instead of interviewing (0.18.0), and every word she wrote stays verbatim.
+The module produces `{ title, bodyFile, housekeeping, fingerprint, proposals }` (`proposals` =
+tests to remove, comments to trim, unexplained scope drift, shown at the caller's one gate); the caller ships it
 (`naruto` `open-pr` or `edit-pr`). The footer's hidden marker
 (`<!-- pr-creation-workflow v1 start=… end=… -->`) is what the auditor's test-requirements check
 reads on `opened` / `reopened` / `ready_for_review`; a Draft is not checked until it is marked ready,
@@ -281,6 +305,7 @@ and caller-passed text stays verbatim.
 | `/debrief` fix commits, decision comments + Linear tickets | yours | **No** |
 | `/merge` merge commit | yours | **No** |
 | `/cleanup` | yours | — (writes no commit and no comment; it changes only the ticket status) |
+| `/cleanup-worktrees` | yours | — (writes no commit, no comment and no ticket status) |
 | `/exam` review comment | colleague's PR | **Yes** — attributed footer |
 | `/exam` stack reviews | colleague's stack, one per PR | **No** — no footer, names no AI |
 
@@ -291,13 +316,18 @@ konoha/
 ├── .claude-plugin/{plugin.json, marketplace.json}
 ├── README.md
 ├── docs/ARCHITECTURE.md
+├── docs/ruled-out.md           ← the ruled-out patterns (code, names, reviews), read before code and by every reviewer
 ├── agents/{itachi,shikamaru,sakura,anbu,kurenai,naruto,gaara}.md
 ├── scripts/codex-common.sh     ← shared: newest-sol model + config effort resolution, codex_run (JSON events, run log)
 ├── scripts/gaara-codex.sh      ← Codex adapter for the counselor (review close)
 ├── scripts/arbiter-codex.sh    ← Codex adapter for the arbiter (rulings on declined findings)
 ├── scripts/pr-body.sh          ← image guard: the only way a PR body is edited (check + edit)
 ├── scripts/worktree-setup.sh   ← makes a worktree runnable: env files in their app folders, submodules, bun install
-├── scripts/worktree-cleanup.sh ← removes the worktree and local branch of a merged PR, or refuses when something would be lost
+├── scripts/worktree-cleanup.sh ← removes the worktree and local branch of a merged PR (or a detached worktree), or refuses when something would be lost
+├── scripts/worktree-sweep.sh   ← sorts every worktree and local branch: merged / open-pr / closed-pr / no-pr
+├── scripts/move-check.sh       ← a move changes nothing: lists files renamed AND edited beyond imports
+├── scripts/new-names.sh        ← lists the module-level names a change adds that the base does not have
+├── scripts/naming-codex.sh     ← the naming pass on Codex: new names vs the base's names and docs/ruled-out.md
 └── skills/
     ├── scroll/SKILL.md          ← create a Linear issue (issue-creation workflow)
     ├── mission/SKILL.md         ← ticket → Draft PR
@@ -306,7 +336,8 @@ konoha/
     ├── seal/SKILL.md            ← seal an existing PR with the PR workflow fingerprint
     ├── merge/SKILL.md           ← bring the base into your branch, fix the conflicts
     ├── cleanup/SKILL.md         ← after the merge: remove the worktree and branch, move the ticket to Done
-    ├── _pr-creation/SKILL.md    ← shared PR creation workflow (link, split, requirements, draft, interview, footer)
+    ├── cleanup-worktrees/SKILL.md ← sweep the repository: remove every merged worktree, list the rest
+    ├── _pr-creation/SKILL.md    ← shared PR creation workflow (link, split, requirements, adapt, footer)
     └── _council-review/SKILL.md ← shared diff review (fan-out + close)
 ```
 
@@ -317,7 +348,7 @@ konoha/
 /plugin install konoha@konoha
 ```
 
-Skills are then invoked as `/konoha:scroll`, `/konoha:mission`, `/konoha:debrief`, `/konoha:exam`, `/konoha:seal`, `/konoha:merge`, `/konoha:cleanup`;
+Skills are then invoked as `/konoha:scroll`, `/konoha:mission`, `/konoha:debrief`, `/konoha:exam`, `/konoha:seal`, `/konoha:merge`, `/konoha:cleanup`, `/konoha:cleanup-worktrees`;
 agents dispatch as `subagent_type: "konoha:itachi"` (etc.). Run `/reload-plugins` or restart the
 session after changes.
 
@@ -334,6 +365,7 @@ The themed skills evolve logic you already have; your current skills stay untouc
 | `/seal` | — (new) |
 | `/merge` | — (new; the `/mission` resync step, for a branch that is already out) |
 | `/cleanup` | — (new; what you did by hand after a merge: move the ticket, remove the worktree) |
+| `/cleanup-worktrees` | `/cleanup` (the same guard, for every worktree at once) |
 
 ## v1 scope (deferred from thk)
 
@@ -407,4 +439,19 @@ The themed skills evolve logic you already have; your current skills stay untouc
   script `worktree-cleanup.sh` removes the worktree and the local branch of each merged PR or
   refuses, and the Linear ticket moves to Done when all of its PRs are merged. No subagent, no
   GitHub write, no YubiKey step.
+- **Phase 3.16 (0.16.0)** — `/cleanup-worktrees` sweeps the whole repository: `worktree-sweep.sh`
+  sorts every worktree and local branch, the guard gains a `--detached <path>` mode, the merged
+  items go with no prompt, and the rest is one numbered list. No ticket moves.
+- **Phase 3.17 (0.17.0)** — after the stack #1500 post-mortem: `/debrief` posts Slack reviews on
+  the PR, explains conflicts and repeats before fixing, caps a round and stops when the fixes
+  feed the next round, deletes first, asks before additions, defers mechanisms, reviews its fixes
+  (move check, Gaara delta, Codex naming pass) and replies `Fixed in <sha>`. `docs/ruled-out.md`
+  (Carlos's list) is read by Kakashi and every reviewer; the council runs the move check and the
+  naming pass; `/exam` reads the PR history, states problems not mechanisms, reports reversals to
+  the user, marks at most five "do first" and applies the stop rule.
+- **Phase 3.18 (0.18.0)** — the rules cleanup: `_pr-creation` adapts instead of interviewing
+  (no draft request; Kakashi checks scope drift, tests, comments and pieces himself and lists the
+  cuts as proposals at the one gate), so `/mission` has two planned prompts; Sakura `verify` runs
+  `format:check`; a reviewer's same-shape version that adds code is a "needs your yes" item in
+  `/debrief`; Shikamaru plans with tMachine, not XState.
 - **Phase 4 (optional)** — profiles.json, local resume.

@@ -80,6 +80,13 @@ line, and fetch `<baseBranch>` over HTTPS for step 2 when it is not local.
 
 1. **Read the PR.** `gh pr view <url>` + `gh pr diff <url>`. Read the linked issue when the body
    names one — the issue's acceptance criteria are the scope boundary you judge against.
+   Read the PR's conversation too (0.17.0): every review thread, resolved ones included
+   (`gh api graphql` on `reviewThreads`), the review summaries with their `commit_id`, and the
+   conversation comments (decision comments, `Review from Slack` comments). Write them to
+   `history.md`. When the user reviewed this PR before, `PREV` is the `commit_id` of her latest
+   review. The history is context for §Review rules; a point that a resolved thread, a decision
+   comment or the PR body already settled is not raised again, unless the code shows a wrong
+   value that a user sees or signs.
 2. **Pin the merge base.** `BASE=$(git merge-base <prHead> origin/<baseBranch>)`. Record it. Every
    later step compares against this exact SHA. Without it you cannot classify anything.
 3. **Prepare a checkout — §Worktree below.** The lenses need the post-change tree, not just a diff.
@@ -171,6 +178,26 @@ Rules:
   goes in the Slack block; do not put it on the author.
 - When the base check is genuinely ambiguous, ask the user at the gate rather than guessing.
 
+## Review rules (0.17.0)
+
+From the stack #1500 post-mortem, where reviews proposed mechanisms, changed direction between
+rounds and grew the code they reviewed. `${CLAUDE_PLUGIN_ROOT}/docs/ruled-out.md` has the full
+list; these four shape the review body:
+
+- **State the problem, not a mechanism.** A finding says what must stop being true and prefers
+  deleting. It does not prescribe a store, a machine, a graph or a new file. When a mechanism
+  choice is needed, it is a question to the author, in one line.
+- **Do not reverse an earlier round.** Check each finding against `history.md`. A finding that
+  undoes a direction of an earlier review (the user's or another reviewer's) does not go on the
+  PR as a finding: it goes to the user in block B as a conflict, with both quotes and dates.
+- **Do first: at most five.** Mark at most five findings as "do first". A structural finding
+  (layers, state kept twice, a design that changed) goes first and alone.
+- **Stop rule.** With a `PREV`, count the new findings whose cited lines were written since
+  `PREV` (`git blame` the line; its commit is not an ancestor of `PREV`). When that is more than a
+  third, the review opens with one line: `<n> of <m> new findings are on code written since the
+  last review. I suggest we re-plan before another round.` Then only the do-first findings
+  follow.
+
 ## Review body
 
 Target **≤ 600 words**. Hard ceiling 900. If the content does not fit, you are including things that
@@ -183,7 +210,8 @@ The first line of the review is the first finding.
 Shape:
 
 1. **Blockers** — the `NEW` findings that should stop a merge. Each ≤ 120 words: the mechanism, the
-   `file:line`, and a concrete failure scenario. Most important first.
+   `file:line`, and a concrete failure scenario. Most important first; the "do first" ones are
+   marked (§Review rules).
 2. **Other notes** — remaining `NEW` and `NEWLY-REACHABLE`, one or two sentences each.
 3. **Out of scope** (only if any) — ONE line telling the author that pre-existing items were found
    and are tracked elsewhere. Do not list them here; they live in block B.
@@ -232,6 +260,15 @@ is too long to post — cut it down and print the cut version.
 
 Every `PRE-EXISTING` and `SYSTEMIC` finding, written as a message the user can copy straight into
 Slack. **Do not create GitHub issues, and do not post this on the PR.** The user handles it.
+
+Above those findings, every conflict with an earlier round (§Review rules), in this shape, so the
+user can settle it with the other reviewer before the author gets two opposite asks:
+
+```
+**<Topic>: this review would reverse an earlier direction.**
+- <Name> (<where>, <date>): "<short quote>"
+- This review would ask: <what>, because <reason>.
+```
 
 Format it as plain prose with a short title line, then one bullet per item: what it is, where
 (`file:line`), and why it is not this PR's job. Keep the whole block under 200 words. Name the PR

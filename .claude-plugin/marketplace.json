@@ -7,8 +7,8 @@
     {
       "name": "konoha",
       "source": "./",
-      "version": "0.15.0",
-      "description": "A squad of Konoha ninja (subagents) powering seven dev-workflow skills: /scroll, /mission, /debrief, /exam, /seal, /merge, /cleanup. Claude plans and executes; Codex closes reviews and rules on declines."
+      "version": "0.18.0",
+      "description": "A squad of Konoha ninja (subagents) powering eight dev-workflow skills: /scroll, /mission, /debrief, /exam, /seal, /merge, /cleanup, /cleanup-worktrees. Claude plans and executes; Codex closes reviews and rules on declines."
     }
   ]
 }

@@ -74,6 +74,7 @@ Write all prose — the lists and the report — in ASD-STE100 Simplified Techni
    - a **Linear issue** (`linear.app/<workspace>/issue/<KEY>-<n>/…` or `<KEY>-<n>`) → the ticket,
      and its PRs come from step 1;
    - **nothing** → the PR, stack or ticket that this session worked on.
+   - **"all", or a sweep of every worktree** → this is `/cleanup-worktrees`: run that skill.
    - **nothing, and the session has no such work** → list the candidates and end your turn:
      ```bash
      gh pr list --author @me --state merged --limit 100 --json number,title,headRefName,mergedAt,url

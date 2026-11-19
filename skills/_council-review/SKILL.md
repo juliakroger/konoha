@@ -40,6 +40,16 @@ may lower it, and a diff that grew into a critical path since an earlier check u
    - `konoha:sakura` `action: review-rules` — CLAUDE.md conventions.
    - `konoha:kurenai` — AI-output review: hallucinated symbols, invented compatibility, prompt
      leakage, narration, fabricated tests (findings carry their dispel proof).
+   Tell every lens, in its dispatch prompt, to read `${CLAUDE_PLUGIN_ROOT}/docs/ruled-out.md`
+   first (0.17.0): a violation of a ruled-out pattern is a finding also when the code works, and
+   a finding states the problem, not a mechanism.
+   In the same message, run the two mechanical checks (0.17.0) in the workdir against `base`
+   (with `--head <prHead>` for a PR target):
+   - `"${CLAUDE_PLUGIN_ROOT}/scripts/move-check.sh" --workdir <workdir> --base <base>` — each line
+     is a finding (`from: move-check`, severity med): a moved file that was also edited.
+   - `"${CLAUDE_PLUGIN_ROOT}/scripts/naming-codex.sh" --workdir <workdir> --base <base>` — each
+     flag is a finding (`from: naming`, severity low). Exit 4 (no new name) is a clean result.
+     Any other failure halts the review, as for Gaara below.
 2. **Collect** their `findings[]`, write them to a scratch file, then run the **Gaara closer on
    Codex** — a different model on purpose, and a REQUIRED step:
    ```bash
@@ -65,7 +75,7 @@ author what is theirs to fix, and reviews grow into 50-file cleanups.
 that asserts "pre-existing" or "regression" with `baseCheck: 'unknown'` has not done the work;
 the caller re-runs it during its own verify pass.
 
-## Gaara is mandatory — never substitute, never skip
+## Gaara (and the naming pass) are mandatory — never substitute, never skip
 
 The outside GPT read is the point of the closer: four Claude lenses grading a Claude change is the
 failure mode it exists to break. A review without it is **not a finished review**.
@@ -80,6 +90,7 @@ ask the user** (AskUserQuestion), quoting the exit code and stderr, with exactly
 
 Hard prohibitions, no exceptions:
 
+- The same holds for `naming-codex.sh`: a failure is retry or stop, never a Claude naming pass.
 - **Never** dispatch the Claude `konoha:gaara` agent as an automatic fallback. It is a different
   model only on paper; substituting it silently returns a same-family opinion under Gaara's name.
 - **Never** continue with the four Claude lenses alone and note the gap — the user decides, not you.

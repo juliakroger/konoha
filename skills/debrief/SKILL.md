@@ -1,6 +1,6 @@
 ---
 name: debrief
-description: Resolve the reviews on YOUR pull request. You pass the PR URL and the skill pulls its comments (the AI review bot first, then teammates); then it asks whether there's a Slack review to paste (optional). Shikamaru maps the feedback to the task, you (Kakashi) triage, write one list of what you fix and what you propose not to do, and fix. Sakura verifies, Naruto commits with a message that names the fix (never "Fix review"), pushes and marks fixed threads resolved. Every decision NOT to do an item gets one short comment on the PR with the reason in simple words; an item that moves to another task gets a Linear ticket, and the comment carries its link. No AI attribution — it's your own PR. Use when the user says "resolve the reviews on <PR>", "address the feedback", or invokes /debrief.
+description: Resolve the reviews on YOUR pull request. You pass the PR URL and the skill pulls its comments (the AI review bot first, then teammates) and the history of earlier rounds; then it asks whether there's a Slack review to paste (optional) - a pasted Slack review is posted on the PR verbatim. Shikamaru maps the feedback to the task; you (Kakashi) explain where reviewers (and the user) conflict or repeat each other before anything is fixed, rank the round (a cap, a stop rule, additions need a yes, mechanism proposals wait), write one list, and fix by deleting first. Sakura verifies, Gaara and the Codex naming pass review the fixes before they ship, Naruto commits with a message that names the fix (never "Fix review"), pushes, replies "Fixed in <sha>" on each fixed thread and resolves it. Every decision NOT to do an item gets one short comment on the PR with the reason in simple words; an item that moves to another task gets a Linear ticket, and the comment carries its link. No AI attribution — it's your own PR. Use when the user says "resolve the reviews on <PR>", "address the feedback", or invokes /debrief.
 ---
 
 # /debrief — post-mission debrief 🍃
@@ -33,10 +33,13 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
      When the fixes have nothing in common, name the two most important ones and let the body
      carry the rest. Never fall back to a subject that names the round or the reviewer.
    One commit for each debrief round, unless she asks for a split.
-5. **A comment records a decision, and nothing else (0.14.0).** What each item gets:
-   - **Fixed** → the thread is marked **resolved** (GraphQL `resolveReviewThread`; REST cannot do
-     it). No reply: the mark is the signal. A thread with a code change is resolved also when a
-     part of it was not done; that part gets its decision comment first.
+5. **A comment records a decision or a fix, and nothing else (0.14.0, 0.17.0).** What each item gets:
+   - **Fixed** → one reply in the thread, `Fixed in <short sha>: <what changed, in a few words>.`,
+     then the thread is marked **resolved** (GraphQL `resolveReviewThread`; REST cannot do it).
+     The reply is the answer the reviewer reads; the PR body is never the answer channel. A
+     thread with a code change is resolved also when a part of it was not done; that part gets
+     its decision comment first. (0.14.0 had no reply here; stack #1500 showed that reviewers
+     then do not see the answer and raise the item again.)
    - **Not done in this PR** — the user and you decided it — → **one short comment with the
      reason** (hard rule 6). There are two kinds: *won't do*, and *another task* (hard rule 7).
      Post it as a reply in the item's review thread. An item with no thread (a review summary, a
@@ -46,7 +49,7 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
    - **A question from a reviewer** → no comment from you. Give it to the user in the report with
      a suggested answer; she answers it herself.
    Never post another kind of reply: no "done", no thanks, no summary of the round. Never post
-   before she approved the exact text at the gate (step 7).
+   before she approved the exact text at the gate (step 9).
 6. **A decision comment is simple.** A reader who did not follow the discussion must understand it.
    One or two short sentences give the reason in plain words: what happens for the user or in the
    code, not a wall of `file:line`. Do not name the arbiter, Codex or an AI. No apology, no thanks,
@@ -61,6 +64,8 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
    An item that was done in part says both halves: `Added the bad-index guard. Not using splice
    here: <reason>.` In the conversation comment for items with no thread, each bullet starts with
    the item and its source: `- **<the item in a few words>** (<name>, review | Slack): <shape>`.
+   For a Slack item, that comment carries the fixed ones too (`Fixed in <short sha>: <what>.`), so
+   each Slack item gets an answer on the PR, as a thread item does.
 7. **Another task is a Linear ticket, created before its comment (0.14.0).** When the decision is
    to do an item in another task, create the ticket in team `FE` and put its identifier and URL in
    the comment. Load the tools when the list has such an item — `ToolSearch` with
@@ -110,6 +115,59 @@ the AI review bot, teammates on GitHub, and reviewers who commented in **Slack**
     regenerate it from a draft or from memory, never run `gh pr edit --body` / `--body-file`
     directly. A removed image stays removed; a changed one stays as she changed it; you never add
     one — `gh` cannot upload it, so any reference you would add is invented.
+12. **A Slack review goes on the PR (0.17.0).** A review that reached her in Slack is part of the
+    PR's record, so the next reviewer and the next round can find it. Post each pasted Slack
+    review as one PR conversation comment, verbatim, every line quoted:
+    ```
+    **Review from Slack — <Name>, <YYYY-MM-DD>**
+
+    > <the text as she pasted it, line by line>
+    ```
+    No summary, no edit, no added words. She sees the exact text at the gate. It is posted
+    first at ship, also on "ship the fixes only", because the record does not depend on the
+    decisions. Its items get their answers in the comment of hard rule 6.
+13. **Conflicts and repeats are explained, never fixed (0.17.0).** Before any fix, compare the
+    round with the history (step 4): the earlier threads (resolved ones too), earlier Slack
+    reviews and decision comments on the PR, and the user's own rulings on this work in her
+    memory. Two kinds of item stop there:
+    - **Conflict** — two people (reviewers, or a reviewer and the user) ask for opposite things,
+      or an item undoes a direction of an earlier round.
+    - **Repeat** — an item that was raised before and was fixed, declined or answered. A repeat
+      means the earlier answer did not land.
+    Write each conflict as an explanation, not as a decision to take:
+    ```
+    **<Names> conflict on <the topic>.**
+    - <Name> (<where>, <date>): "<short quote>"
+    - <Name> (<where>, <date>): "<short quote>"
+    They cannot both hold, because <reason>. The code does <what> today.
+    <Option A> costs <what>; <option B> costs <what>. I recommend <option>, because <reason>.
+    ```
+    and each repeat as `Raised <n> times: <who, date> …; last answer: <what was done>.` Do not
+    fix an item in a conflict until she rules; discuss it with her in the conversation. Her
+    ruling goes on the PR as a plain decision comment (`Decision on <topic>: <ruling>.`, no
+    @-mention unless she asks), so the reviewers see it.
+14. **Try deleting first; an addition needs her yes; a mechanism waits (0.17.0).** Read
+    `${CLAUDE_PLUGIN_ROOT}/docs/ruled-out.md` before the first fix. For each fix, first ask what
+    you can remove or simplify. Two kinds of item are not fixed on your own:
+    - **Adds code** — a fix that adds a file, a type, an enum, a guard, a state or a layer. It
+      goes in the list with what it adds and why deleting does not solve it. Fix it only after
+      her yes.
+    - **Design change** — an item that proposes a mechanism or a new structure (a store, a
+      machine, a library, a new layer) instead of a problem. A PR under review gets only the
+      round's fixes; a design change lands after this review closes, in a new PR or a ticket,
+      unless she says to do it now.
+15. **A round has a cap and a stop rule (0.17.0).** Rank the fix items: every must-fix (a wrong
+    value signed or sent, money, a crash, a broken screen), then at most 8 others, the structural
+    ones first. The rest goes to **next round** in the list. Before ranking, count the new
+    findings whose cited lines were written since the head that the previous round reviewed
+    (step 4). When that is more than a third, open the list with
+    `STOP: <n> of <m> new findings are on lines the last round wrote.`, and fix nothing until she
+    and you re-plan: another round of fixes would make it worse.
+16. **The fixes are reviewed before they ship (0.17.0).** A fix round never ships unreviewed
+    (step 8): the move check, Gaara on the fix delta and the Codex naming pass, and the full
+    council when the fixes add files or names or change more than 300 lines. A failure of
+    Gaara or of the naming pass HALTS, as in `_council-review`: retry or stop, never a Claude
+    substitute, never a silent skip.
 
 ## Language (ASD-STE100)
 
@@ -134,54 +192,105 @@ answers — in ASD-STE100 Simplified Technical English:
 
 1. **PR URL (given with the invocation).** Fetch the PR, its inline review comments, its review
    summaries and its conversation comments: `gh pr view <url> --json ...`,
-   `gh api repos/{owner}/{repo}/pulls/{n}/comments`, `.../pulls/{n}/reviews`,
-   `.../issues/{n}/comments`. Read the thread state with `gh api graphql` on
-   `pullRequest.reviewThreads` (`id`, `isResolved`, the first comment's `databaseId`): skip a
-   resolved thread, and keep each open thread's `id` for step 8. Read the **AI review bot**
-   comments first, then the teammates'.
+   `gh api repos/{owner}/{repo}/pulls/{n}/comments`, `.../pulls/{n}/reviews` (keep each review's
+   `commit_id` and `submitted_at`), `.../issues/{n}/comments`. Read ALL threads with
+   `gh api graphql` on `pullRequest.reviewThreads` (`id`, `isResolved`, `isOutdated`, the first
+   comment's `databaseId`, author, `createdAt`, body). The open threads are this round; keep each
+   one's `id` for step 10. The resolved threads, the earlier `Review from Slack` comments and the
+   earlier decision comments are the **history**: write them to `history.md` in the scratchpad.
+   Read the **AI review bot** comments first, then the teammates'.
+   - **The previous round's head (`PREV`):** the `commit_id` of the latest review that came before
+     this round. With no earlier round, `PREV` is empty and the stop rule does not apply.
+   - **Her rulings:** read the index of her memory and the notes that name this PR, its stack or
+     its ticket. A ruling there is part of the history, with its date.
 2. **Ask for Slack (optional).** Then explicitly ask the user: *"Any Slack review to paste in? (optional)"*
-   If they paste text, fold those findings into the same triage; if they skip, continue. Ask it
-   here, at the start. Never end a later message on this question.
+   If they paste text, ask in the same line who wrote it and the date, when the text does not
+   say so. Keep the text verbatim for hard rule 12, and fold its findings into the same triage. If
+   they skip, continue. Ask it here, at the start. Never end a later message on this question.
 3. **Understand.** Dispatch `konoha:shikamaru` to map each piece of feedback against the PR's task.
-4. **Triage.** Sort each item, with a one-line reason: **fix** / **won't do** (candidate) /
-   **another task** (candidate) / **question**. Send all won't-do candidates to the Codex arbiter
-   in ONE batched `arbiter-codex.sh` call (hard rule 10); a `DENIED` ruling moves the item to fix.
-   For a won't-do candidate whose code the reviewer called unclear, look for a version with the
-   same clean shape that keeps the behaviour, and propose that as the fix instead.
-5. **The list.** Write ONE message, in her words and not the code's, numbered, with three parts:
-   - **Fixes I make now** — one line each.
+   Give him `history.md` too, and ask him to name, for each item, an earlier item or ruling that
+   it repeats or contradicts.
+4. **History check (hard rules 13 and 15).** For each new item:
+   - **Conflict or repeat:** compare it with `history.md` and with the other new items. Write each
+     conflict and each repeat in the shape of hard rule 13.
+   - **Provenance:** for a cited `file:line`, run `git blame -L <line>,<line> <head> -- <file>`.
+     The line was written since `PREV` when its commit is not an ancestor of `PREV`
+     (`git merge-base --is-ancestor <commit> <PREV>` fails). Count those findings for the stop
+     rule.
+5. **Triage.** Sort each item, with a one-line reason: **fix** / **adds code** (needs her yes) /
+   **design change** (waits) / **conflict** / **next round** (over the cap) / **won't do**
+   (candidate) / **another task** (candidate) / **question**. Rank the fix items (hard rule 15).
+   Send all won't-do candidates to the Codex arbiter in ONE batched `arbiter-codex.sh` call (hard
+   rule 10); a `DENIED` ruling moves the item to fix. For a won't-do candidate whose code the
+   reviewer called unclear, look for a version with the same clean shape that keeps the
+   behaviour, and propose it next to the decline. When it adds code (a helper, a type), it goes
+   under **adds code** and needs her yes (hard rule 14); never apply it by default.
+6. **The list.** Write ONE message, in her words and not the code's, numbered, in this order:
+   - the `STOP` line, when the stop rule applies (then the list ends after the conflicts);
+   - **Where you conflict** — each conflict and each repeat, in the shapes of hard rule 13;
+   - **Fixes I make now** — one line each, ranked;
+   - **Needs your yes: adds code** — what each fix adds, and why deleting does not solve it;
+   - **Design changes, after this review** — who proposed what, and where it would land;
+   - **Next round** — the items over the cap, one line each;
    - **Proposed: not done in this PR** — for each item: who asked, what they asked, your proposal
      (*won't do* or *another task*), the reason, the exact comment you would post, and for
-     another task the ticket title.
+     another task the ticket title;
    - **Questions for you** — each with a suggested answer.
    She answers by number or with "all as proposed". Do not ask about each item with
-   `AskUserQuestion`. Do not stop on the list: start the fixes in the same turn, and say that
-   they are not made yet.
-6. **Fix.** Implement the fix items yourself. In a worktree, run
+   `AskUserQuestion`. Unless the `STOP` line opens the list, do not stop on the list: start the
+   plain fixes in the same turn, and say that they are not made yet. Discuss the conflicts with
+   her in the conversation; their items wait for her ruling.
+7. **Fix.** Snapshot the head before the first edit: `PRE=$(git rev-parse HEAD)`. Read
+   `${CLAUDE_PLUGIN_ROOT}/docs/ruled-out.md`, then implement the fix items yourself, deleting
+   first (hard rule 14). In a worktree, run
    `"${CLAUDE_PLUGIN_ROOT}/scripts/worktree-setup.sh" <worktree>`, because an older worktree can
    hold a stale install. Then dispatch `konoha:sakura` `action: verify`.
-7. **One gate.** Show, in full: the commit message (hard rule 4); each decision comment with the
-   place it goes to; each ticket title and description. Tell her the ship step pops her
-   **YubiKey PIN dialog + touch** once for the commit and once for the push. Then one
-   `AskUserQuestion`: ship all as proposed / ship the fixes only / edit / stop. Her earlier
-   answers to the list count: do not ask again for what she decided. An item she has not decided
-   gets no comment and no ticket; it stays open and goes in the report.
-8. **Ship, in this order.**
-   1. `konoha:naruto` `action: commit` with the message of hard rule 4, then `action: push` —
-      Naruto drives both through her PIN popup.
-   2. Mark each FIXED thread resolved, immediately after the push:
-      `mutation { resolveReviewThread(input: {threadId: "..."}) }` with the ids of step 1.
-   3. Create the tickets (hard rule 7), in the main loop.
-   4. Post the decisions: `konoha:naruto` `action: reply` with
-      `{ prUrl, replies: [{ commentId, body }] }` for the thread items (`commentId` = the
-      `databaseId` of the thread's first comment), and one `action: comment` for the items with
-      no thread. The bodies are the approved text, verbatim.
-   5. If a fix made a body line stale, update the body — hard rule 11: a minimal edit of the
-      live body, dispatched as `konoha:naruto` `action: edit-pr` with
-      `{ prUrl, bodyFile, script }` (`script` = the absolute path of
-      `"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh"`).
-9. **Report.** The new commit and its subject; the threads resolved; each decision with the URL
-   of its comment, and the ticket for another task; the body edit (if any); the questions she
-   has to answer, each with a suggested answer; and the items with no decision yet.
+8. **Review the fixes (hard rule 16).** Write the round's items and what each fix did to
+   `round.md`. Then, in the worktree:
+   - `"${CLAUDE_PLUGIN_ROOT}/scripts/move-check.sh" --workdir <wt> --base "$PRE"` — a moved file
+     that was also edited is split into a move and an edit, or the edit is undone.
+   - `"${CLAUDE_PLUGIN_ROOT}/scripts/gaara-codex.sh" --workdir <wt> --base "$PRE" --prior round.md`.
+   - `"${CLAUDE_PLUGIN_ROOT}/scripts/naming-codex.sh" --workdir <wt> --base "$PRE"` (exit 4 = no
+     new name: go on).
+   - When the fixes add files or names (`new-names.sh` prints a line) or change more than 300
+     lines (`git diff --shortstat "$PRE"`), invoke `konoha:_council-review` (`mode: "fix"`) on
+     the fix delta instead of Gaara alone.
+   A finding on a line that the fixes wrote is fixed now, then verify and Gaara run once more. A
+   finding on an older line goes to **next round**. What survives the second pass goes to her at
+   the gate; there is no third pass.
+9. **One gate.** Show, in full: the commit message (hard rule 4); each Slack review comment
+   (hard rule 12); each `Fixed in` reply; each decision comment with the place it goes to,
+   rulings on conflicts included; each ticket title and description; and the files that the
+   fixes touch but no item names (ask about each one). Show the review of step 8 in one line per
+   finding. Tell her the ship step pops her **YubiKey PIN dialog + touch** once for the commit
+   and once for the push. Then one `AskUserQuestion`: ship all as proposed / ship the fixes only /
+   edit / stop. Her earlier answers to the list count: do not ask again for what she decided. An
+   item she has not decided gets no comment and no ticket; it stays open and goes in the report.
+10. **Ship, in this order.**
+    1. `konoha:naruto` `action: commit` with the message of hard rule 4, then `action: push` —
+       Naruto drives both through her PIN popup.
+    2. Post each Slack review (hard rule 12): `konoha:naruto` `action: comment`, the approved
+       text verbatim.
+    3. For each FIXED thread: `konoha:naruto` `action: reply` with the `Fixed in <short sha>`
+       text (hard rule 5), then mark it resolved:
+       `mutation { resolveReviewThread(input: {threadId: "..."}) }` with the ids of step 1.
+    4. Create the tickets (hard rule 7), in the main loop.
+    5. Post the decisions: `konoha:naruto` `action: reply` with
+       `{ prUrl, replies: [{ commentId, body }] }` for the thread items (`commentId` = the
+       `databaseId` of the thread's first comment), and one `action: comment` for the items with
+       no thread and the rulings on conflicts. The bodies are the approved text, verbatim.
+    6. If a fix made a body line stale, update the body — hard rule 11: a minimal edit of the
+       live body, dispatched as `konoha:naruto` `action: edit-pr` with
+       `{ prUrl, bodyFile, script }` (`script` = the absolute path of
+       `"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh"`). A body edit records a change of the PR; it
+       never answers a reviewer.
+11. **Report.** The new commit and its subject; the threads answered and resolved; the Slack
+    reviews posted; each decision with the URL of its comment, and the ticket for another task;
+    the conflicts and her rulings; the items in **next round** and the design changes that wait;
+    the body edit (if any); the questions she has to answer, each with a suggested answer; and
+    the items with no decision yet.
 
-*(This extends your `resolve-comments` skill with the Slack-text second input.)*
+*(This extends your `resolve-comments` skill with the Slack-text second input. 0.17.0 adds the
+history check, the cap and stop rule, and the review of the fixes, after the stack #1500
+post-mortem: seven rounds of 16–31 items, fixes that caused the next round's findings, and
+answers that went into PR bodies.)*

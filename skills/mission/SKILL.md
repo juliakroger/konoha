@@ -1,6 +1,6 @@
 ---
 name: mission
-description: Take a GitHub or Linear issue end-to-end to a Draft PR on the target repo. Itachi captures context (a Linear ticket is read first over the linear-server MCP), Shikamaru plans, you (Kakashi) implement per CLAUDE.md, Sakura verifies, the council reviews the diff and you fix what it flags (a decline needs a GRANTED ruling from the Codex arbiter), then the PR creation workflow runs — the user writes the description, you interview her about what it leaves out and seal it with the fingerprint the auditor reads — and Naruto opens a Draft PR (based on development) that links the issue with Closes <owner>/<repo>#<n> (GitHub) or Closes <KEY>-<n> (Linear). Autonomous, with three planned prompts: the APP_ENV target at preflight, the PR description interview, and the ship confirmation before the PR opens. Use when the user says "work on <issue>", pastes a GitHub issue or a Linear issue link to start, or invokes /mission.
+description: Take a GitHub or Linear issue end-to-end to a Draft PR on the target repo. Itachi captures context (a Linear ticket is read first over the linear-server MCP), Shikamaru plans, you (Kakashi) implement per CLAUDE.md, Sakura verifies, the council reviews the diff and you fix what it flags (a decline needs a GRANTED ruling from the Codex arbiter), then the PR creation workflow runs — you build the description from what exists (her words verbatim, no draft request, no interview) and seal it with the fingerprint the auditor reads — and Naruto opens a Draft PR (based on development) that links the issue with Closes <owner>/<repo>#<n> (GitHub) or Closes <KEY>-<n> (Linear). Autonomous, with two planned prompts: the APP_ENV target at preflight and the ship confirmation, where she sees the full body once. Use when the user says "work on <issue>", pastes a GitHub issue or a Linear issue link to start, or invokes /mission.
 ---
 
 # /mission — run the mission to a Draft PR 🍃
@@ -18,18 +18,19 @@ the code yourself (single-agent execution).
    creation workflow's footer (hard rule 6) is not attribution — it is the process record the
    auditor's check reads — and it stays.
 3. **Verification is unconditional** — `bun run check` + tests must be green before the PR opens.
-4. **Three PLANNED prompts** — the `APP_ENV` target at preflight (step 0), the PR description
-   interview (step 10: her draft, then the short rounds the workflow needs), and the ship
-   confirmation before the PR opens (step 11). Otherwise run autonomously. This caps the prompts
+4. **Two PLANNED prompts** — the `APP_ENV` target at preflight (step 0) and the ship
+   confirmation before the PR opens (step 11), which shows the full PR body once. The PR
+   creation workflow adds a question only for a split or an open requirements item (0.18.0). Otherwise run autonomously. This caps the prompts
    the mission chooses to raise; it never suppresses a failure-path stop that another hard rule
    requires (a Gaara/Codex failure, a script failure, a critically underspecified issue, an open
    question in the plan that blocks execution). Those still ask.
 5. **Honor the target repo's `CLAUDE.md`** throughout.
 6. **The PR description follows the PR creation workflow (0.10.0).** `tplus-services
-   docs/process/pr-creation.md`, run as the `konoha:_pr-creation` module in step 10. The user
-   writes the description in her own words — short fragment bullets are her shape (terminal #619,
-   #591) and a complete draft — and every word she writes stays verbatim. You add the `> [!NOTE]`
-   blocks, the Testing facts, the issue link and the fingerprint footer. The auditor's
+   docs/process/pr-creation.md`, run as the `konoha:_pr-creation` module in step 10. Since 0.18.0
+   you adapt, you do not interview: never ask her to draft, and build the body from her words in
+   this session (verbatim), the ticket, the diff, `plan.md`, `deviations.md` and the verify report,
+   in her shape — one-line fragment bullets (terminal #619, #591). You add the `> [!NOTE]` blocks,
+   the Testing facts, the issue link and the fingerprint footer. The auditor's
    test-requirements check requests changes on a PR without the fingerprint the moment it is
    marked ready; a Draft is not checked, so the footer must already be there when she clicks
    ready. Never write the footer without running the workflow. The body carries no image or
@@ -71,7 +72,7 @@ the code yourself (single-agent execution).
 12. **PR images belong to Julia (0.8.0).** She drags screenshots into the PR body in the browser
     after the PR exists; `gh` cannot upload one. So the body you author (step 10) carries no image
     or attachment reference — such a reference is stale or invented, and the guard rejects it.
-    When the PR already exists (a re-gate after her answer changed the diff, a follow-up amend, a
+    When the PR already exists (a re-gate after her answer changed the diff, a follow-up commit, a
     stale caveat line), never regenerate the body from a scratch draft or from memory: fetch the
     live body right before the edit (`gh pr view <url> --json body -q .body`), change only the
     lines the update is about, keep every image reference verbatim on its own line in its slot,
@@ -190,7 +191,9 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
    If its `## Open questions` lists a blocker, ask the user (hard rule 4), write her answer to a
    file, and dispatch `plan` again with `{ dossier, workdir, revise: plan.md, reason: <that file> }`;
    replace `plan.md` with the result.
-5. **Execute.** Implement **yourself**, per `CLAUDE.md`. No fan-out to parallel writers.
+5. **Execute.** Implement **yourself**, per `CLAUDE.md`. No fan-out to parallel writers. Read
+   `${CLAUDE_PLUGIN_ROOT}/docs/ruled-out.md` before the first edit (0.17.0): delete first, one
+   name per concept, a move changes nothing, no layer that holds state its source already has.
    - `standard`: follow `plan.md`'s Decision, Changes, Forbidden, and Tests sections. Log every
      deviation in `deviations.md` (`- <plan item> — <what changed> — mechanical | plan revised`):
      a **mechanical** deviation (renamed local, moved line, missing import) is logged and you
@@ -214,7 +217,9 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
    evidence) and run ONE
    `"${CLAUDE_PLUGIN_ROOT}/scripts/arbiter-codex.sh" --contested <file> --workdir <worktree>`
    call (plus `--plan plan.md` on `standard`); obey every ruling (`DENIED` → fix it; `GRANTED` →
-   declined, record the id). Then re-run verify.
+   declined, record the id). A fix that adds a file, a type, an enum, a guard, a state or a layer
+   is still fixed here (the mission has no reviewer to ask), but it goes in the report with what
+   it adds. Then re-run verify.
 8. **Delta close (round 2).** Round-1 fixes must not ship unreviewed — but do not reconvene the
    council. Skip this step only when round 1 required no fixes. Otherwise write the round-1
    findings + what each fix did to a file, and run the Gaara closer alone on the fix delta:
@@ -232,15 +237,19 @@ Write all prose — chat updates, reports, drafts — in ASD-STE100 Simplified T
     `{ kind: 'github', url }` or `{ kind: 'linear', url, identifier, file: ticket-<key>-<n>.md }`;
     `planFile` is `plan.md` on `standard`. The module records its start time, decides whether the
     PR is housekeeping, writes the issue link (hard rule 13 forms), runs the split check, reads
-    the ticket's `## Scope` / `## Verification` against the diff, sends her the draft request and
-    **ends your turn** until she answers, interviews her about what the draft leaves out, and
-    returns `{ title, bodyFile, housekeeping, fingerprint }` — her words verbatim, your notes,
-    the Testing facts from `verifyFile`, and the footer with the hidden marker as the last line.
-    The body carries no image reference (hard rule 12). Resolve
+    the ticket's `## Scope` / `## Verification` against the diff, checks scope drift, new tests,
+    comments and implementation pieces itself (no draft request, no interview), and returns
+    `{ title, bodyFile, housekeeping, fingerprint, proposals }` — her words verbatim, your
+    sections and notes, the Testing facts from `verifyFile`, and the footer with the hidden
+    marker as the last line. The body carries no image reference (hard rule 12). Resolve
     `"${CLAUDE_PLUGIN_ROOT}/scripts/pr-body.sh"` to an absolute path now — Naruto gets it as
-    `script`. The interview is the second planned prompt (hard rule 4).
-11. **Confirm (incl. YubiKey), then ship.** Show the user the title + body + a one-line diffstat +
-    the dials (`difficulty`, council `tier`) and get a single OK (`AskUserQuestion`) — in that same
+    `script`.
+11. **Confirm (incl. YubiKey), then ship.** Show the user the title + the full body + a one-line
+    diffstat + the dials (`difficulty`, council `tier`), the module's `proposals` as a numbered
+    list (tests to remove, comments to trim, scope drift with no reason), and one line: "The body
+    is adapted from what exists, not interviewed." Get a single OK (`AskUserQuestion`: ship / edit
+    / cancel). An accepted proposal is a code change: make it, let Sakura re-run the affected
+    project, rebuild the footer counts, then ship. In that same
     prompt, tell her the ship step pops her **YubiKey PIN dialog + touch once per commit to sign
     and again to push**, so she should have the key plugged in and be ready to approve each. Then
     dispatch `konoha:naruto` `action: commit` (the message of hard rule 14) + `action: open-pr`

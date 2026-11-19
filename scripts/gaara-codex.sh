@@ -81,6 +81,8 @@ PRIOR_TEXT="<none>"
 [ -n "$PRIOR" ] && [ -f "$PRIOR" ] && PRIOR_TEXT="$(cat "$PRIOR")"
 PLAN_TEXT="<none>"
 [ -n "$PLAN" ] && [ -f "$PLAN" ] && PLAN_TEXT="$(cat "$PLAN")"
+# The ruled-out patterns (0.17.0): a violation is a finding even when the code works.
+RULED_OUT="$(sed -n '/^## Code/,$p' "$SCRIPT_DIR/../docs/ruled-out.md")"
 
 # Gaara must always run the NEWEST Codex model. A hard-coded pin rots silently —
 # this sat on gpt-5.5, then on the config's gpt-5.6-sol, after the CLI had moved
@@ -108,7 +110,20 @@ Rules:
 - Write in ASD-STE100 Simplified Technical English: short sentences (max 20-25
   words), active voice, one topic per sentence, simple words, no idioms. Keep
   code identifiers and quoted output verbatim.
+- Check the change against the ruled-out patterns below. A violation is a finding,
+  also when the code works: a layer that holds state its source already has, an
+  unearned concept, a moved file that was also edited, a second name for an
+  existing concept, a function that only forwards.
+- State the problem, not a mechanism: say what must stop being true, and prefer
+  deleting. Never prescribe a store, a machine, a graph or a new file unless the
+  plan says so; when a mechanism choice is needed, write it as a question.
+- When a prior-findings file is given and this is a fix round, check that each fix
+  does not reverse an earlier direction and does not add a file, type, enum,
+  guard, state or layer that deleting would make unnecessary. Report such a fix.
 - End with exactly one line: 'VERDICT: APPROVE' or 'VERDICT: REQUEST-CHANGES'.
+
+Ruled-out patterns:
+${RULED_OUT}
 
 Council findings (do not repeat):
 ${PRIOR_TEXT}
